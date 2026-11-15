@@ -132,10 +132,16 @@ copy_text = ["y"]
 
 # Inline previews download visible images/stickers/GIFs in the background.
 # GIF previews use ffmpeg and ffprobe from PATH.
+# Media auto-download works like WhatsApp storage settings: each kind may
+# fetch on its own (true) or wait for an explicit action (false).
 [media]
 avatars = true
 inline = true
 protocol = "auto" # auto, kitty, halfblocks; tmux/SSH use halfblocks
+auto_photos = true # image/sticker/GIF previews
+auto_videos = false # full video files once visible
+auto_audio = false # voice notes and audio once visible
+auto_documents = false # documents once visible
 
 # Required only for received voice-message/audio playback.
 [audio]

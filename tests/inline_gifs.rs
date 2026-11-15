@@ -204,7 +204,12 @@ async fn native_gif_previews_verify_reuse_animate_and_stop_when_hidden() {
                 .iter()
                 .all(|f| f.image.width() <= 160 && f.image.height() <= 160)
         );
-        let mut images = ui::Images::new(store.clone(), source.clone(), ImageProtocol::Halfblocks);
+        let mut images = ui::Images::new(
+            store.clone(),
+            source.clone(),
+            ImageProtocol::Halfblocks,
+            true,
+        );
         let mut terminal = Terminal::new(TestBackend::new(20, 8)).unwrap();
         let mut colors = std::collections::HashSet::new();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(4);

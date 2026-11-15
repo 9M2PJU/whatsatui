@@ -98,6 +98,30 @@ fn relative_xdg_uses_home() {
     assert_eq!(p.state, Path::new("/state/whatsapp-tui"));
 }
 #[test]
+fn media_auto_download_defaults_to_photos_only() {
+    use whatsapp_tui::media::AttachmentKind;
+    let media = Config::default().media;
+    assert!(media.auto_photos);
+    assert!(!media.auto_videos);
+    assert!(!media.auto_audio);
+    assert!(!media.auto_documents);
+    assert!(media.auto_download(AttachmentKind::Image));
+    assert!(media.auto_download(AttachmentKind::Sticker));
+    assert!(media.auto_download(AttachmentKind::Gif));
+    assert!(!media.auto_download(AttachmentKind::Video));
+    assert!(!media.auto_download(AttachmentKind::Audio));
+    assert!(!media.auto_download(AttachmentKind::Document));
+    let custom = Config::parse(
+        "[media]\nauto_photos = false\nauto_videos = true\nauto_audio = true\nauto_documents = true",
+    )
+    .unwrap()
+    .media;
+    assert!(!custom.auto_download(AttachmentKind::Image));
+    assert!(custom.auto_download(AttachmentKind::Video));
+    assert!(custom.auto_download(AttachmentKind::Audio));
+    assert!(custom.auto_download(AttachmentKind::Document));
+}
+#[test]
 fn duplicate_context_binding_is_rejected() {
     let err = Config::parse("[bindings.messages]\nreply=['j']")
         .unwrap_err()

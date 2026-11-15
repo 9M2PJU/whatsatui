@@ -54,6 +54,11 @@ pub enum Effect {
         message: Box<MessageRecord>,
         action: crate::media::MediaAction,
     },
+    /// Silent background fetch for auto-download kinds. Never shows a notice
+    /// and never occupies the explicit attachment-action slot.
+    AutoDownload {
+        message: Box<MessageRecord>,
+    },
     DesktopAction {
         request: RequestId,
         message: Box<MessageRecord>,
@@ -193,6 +198,7 @@ pub struct App {
     help_max_scroll: usize,
     editor: Editor,
     visible_messages: Vec<MessageKey>,
+    auto_downloaded: std::collections::HashSet<MessageKey>,
     timeline_tail_rows: usize,
     drafts: HashMap<ChatId, LocalDraft>,
     pending: HashMap<RequestId, PendingSend>,
@@ -262,6 +268,7 @@ impl App {
             },
             editor: Editor::default(),
             visible_messages: vec![],
+            auto_downloaded: std::collections::HashSet::new(),
             timeline_tail_rows: 0,
             drafts: HashMap::new(),
             pending: HashMap::new(),
@@ -456,6 +463,7 @@ impl App {
         self.view.selected_message = None;
         self.view.timeline_anchor = None;
         self.visible_messages.clear();
+        self.auto_downloaded.clear();
         self.timeline_tail_rows = 0;
         self.view.message_scroll = 0;
         self.view.message_scroll_max = 0;
@@ -644,6 +652,38 @@ impl App {
                 }
             }
             Focus::Composer => {}
+        }
+    }
+    fn queue_auto_downloads(&mut self, effects: &mut Vec<Effect>) {
+        if self.view.loading || self.view.messages.is_empty() {
+            return;
+        }
+        for key in self.visible_messages.clone() {
+            if !self.auto_downloaded.insert(key.clone()) {
+                continue;
+            }
+            let Some(message) = self.view.messages.iter().find(|m| m.key == key).cloned() else {
+                continue;
+            };
+            let MessageBody::Media(attachment) = &message.body else {
+                continue;
+            };
+            // Photos ride along with the inline preview fetch; only full
+            // files for the remaining kinds need a background download.
+            if matches!(
+                attachment.kind,
+                crate::media::AttachmentKind::Image
+                    | crate::media::AttachmentKind::Sticker
+                    | crate::media::AttachmentKind::Gif
+            ) {
+                continue;
+            }
+            if !self.config.media.auto_download(attachment.kind) {
+                continue;
+            }
+            effects.push(Effect::AutoDownload {
+                message: Box::new(message),
+            });
         }
     }
     fn reading_position(&mut self) {
@@ -1212,6 +1252,7 @@ impl App {
                     self.view.selected_message = None;
                     self.view.timeline_anchor = None;
                     self.visible_messages.clear();
+                    self.auto_downloaded.clear();
                     self.timeline_tail_rows = 0;
                     self.list_request = None;
                     self.chat_request = None;
@@ -1515,6 +1556,7 @@ impl App {
                                 self.view.selected_message.clone()
                             };
                             self.visible_messages.clear();
+                            self.auto_downloaded.clear();
                             self.timeline_tail_rows = 0;
                             self.view.message_scroll = 0;
                             self.view.message_scroll_max = 0;
@@ -1876,6 +1918,7 @@ impl App {
                     self.view.message_page_rows = metrics.page_rows;
                     self.view.message_scroll = self.view.message_scroll.min(metrics.max_scroll);
                     self.reading_position();
+                    self.queue_auto_downloads(&mut effects);
                 }
             }
             Input::Terminal(event) => self.terminal(event, &mut effects),

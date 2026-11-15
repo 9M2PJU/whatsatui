@@ -66,6 +66,14 @@ pub struct MediaConfig {
     pub inline: bool,
     pub avatars: bool,
     pub protocol: ImageProtocol,
+    /// Image/sticker/gif previews fetch on their own when visible.
+    pub auto_photos: bool,
+    /// Videos download in the background once visible.
+    pub auto_videos: bool,
+    /// Voice notes and audio download in the background once visible.
+    pub auto_audio: bool,
+    /// Documents download in the background once visible.
+    pub auto_documents: bool,
 }
 impl Default for MediaConfig {
     fn default() -> Self {
@@ -73,6 +81,23 @@ impl Default for MediaConfig {
             inline: true,
             avatars: true,
             protocol: ImageProtocol::Auto,
+            auto_photos: true,
+            auto_videos: false,
+            auto_audio: false,
+            auto_documents: false,
+        }
+    }
+}
+impl MediaConfig {
+    /// Whether this attachment kind may download without an explicit action.
+    pub fn auto_download(&self, kind: crate::media::AttachmentKind) -> bool {
+        match kind {
+            crate::media::AttachmentKind::Image
+            | crate::media::AttachmentKind::Sticker
+            | crate::media::AttachmentKind::Gif => self.auto_photos,
+            crate::media::AttachmentKind::Video => self.auto_videos,
+            crate::media::AttachmentKind::Audio => self.auto_audio,
+            crate::media::AttachmentKind::Document => self.auto_documents,
         }
     }
 }
