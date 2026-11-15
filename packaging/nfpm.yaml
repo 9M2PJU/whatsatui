@@ -11,7 +11,9 @@ description: |-
 vendor: "whatsatui contributors"
 homepage: "https://github.com/wuzi/whatsatui"
 license: "MIT"
-bindir: "/usr/bin"
+
+rpm:
+  group: "Applications/Internet"
 
 overrides:
   deb:
@@ -21,8 +23,7 @@ overrides:
       - mpv
       - ffmpeg
       - xdg-utils
-      - wl-clipboard | xclip | xsel
-    section: "net"
+      - "wl-clipboard | xclip | xsel"
   rpm:
     depends:
       - glibc
@@ -30,29 +31,28 @@ overrides:
       - mpv
       - ffmpeg
       - xdg-utils
-      - wl-clipboard | xclip | xsel
-    group: "Applications/Internet"
+      - wl-clipboard
+      - xclip
+      - xsel
 
 contents:
-  - src: ../target/release/whatsapp-tui
+  - src: target/release/whatsapp-tui
     dst: /usr/bin/whatsapp-tui
     file_info:
       mode: 0755
-  - src: ../packaging/whatsapp-tui.desktop
+  - src: packaging/whatsapp-tui.desktop
     dst: /usr/share/applications/whatsapp-tui.desktop
     file_info:
       mode: 0644
-  - src: ../packaging/icon.svg
+  - src: packaging/icon.svg
     dst: /usr/share/icons/hicolor/scalable/apps/whatsapp-tui.svg
     file_info:
       mode: 0644
-  - src: ../LICENSE
+  - src: LICENSE
     dst: /usr/share/doc/whatsatui/copyright
-    type: doc
     file_info:
       mode: 0644
-  - src: ../examples/config.toml
+  - src: examples/config.toml
     dst: /usr/share/doc/whatsatui/config.toml.example
-    type: doc
     file_info:
       mode: 0644
