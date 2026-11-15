@@ -1,6 +1,6 @@
 # Maintainer: 9M2PJU <9m2pju@gmail.com>
 pkgname=whatsatui-bin
-pkgver=0.2.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc="Personal WhatsApp terminal client with a cyan Ratatui interface (prebuilt binary)"
 arch=('x86_64')
