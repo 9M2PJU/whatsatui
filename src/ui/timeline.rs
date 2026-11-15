@@ -196,7 +196,7 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
     let mut lines = vec![];
     let mut runs = vec![];
     for (index, message) in view.messages.iter().enumerate() {
-        let same_day = index.checked_sub(1).is_none_or(|i| days[i] == days[index]);
+        let same_day = index.checked_sub(1).is_some_and(|i| days[i] == days[index]);
         let previous = index.checked_sub(1).map(|i| &view.messages[i]);
         let new_day = !same_day;
         let avatar = previous.is_none_or(|p| !grouped(p, message, same_day));
