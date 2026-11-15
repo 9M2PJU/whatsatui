@@ -48,7 +48,7 @@ async fn ordinary_videos_stay_explicit_and_gif_downloads_are_verified() {
         calls: AtomicUsize::new(0),
     };
     let (_stop, cancel) = watch::channel(false);
-    let error = preview::load(video, store.clone(), &source, cancel.clone())
+    let error = preview::load(video, store.clone(), &source, cancel.clone(), true)
         .await
         .err()
         .unwrap();
@@ -59,7 +59,7 @@ async fn ordinary_videos_stay_explicit_and_gif_downloads_are_verified() {
         .apply_batch(support::batch(vec![gif.clone()]))
         .await
         .unwrap();
-    let error = preview::load(gif.clone(), store.clone(), &source, cancel.clone())
+    let error = preview::load(gif.clone(), store.clone(), &source, cancel.clone(), true)
         .await
         .err()
         .unwrap();
@@ -74,7 +74,11 @@ async fn ordinary_videos_stay_explicit_and_gif_downloads_are_verified() {
         })
         .await
         .unwrap();
-    assert!(preview::load(gif, store, &source, cancel).await.is_err());
+    assert!(
+        preview::load(gif, store, &source, cancel, true)
+            .await
+            .is_err()
+    );
     assert_eq!(source.calls.load(Ordering::SeqCst), 1);
 }
 #[async_trait::async_trait]
@@ -185,6 +189,7 @@ async fn native_gif_previews_verify_reuse_animate_and_stop_when_hidden() {
             store.clone(),
             source.as_ref(),
             cancel.clone(),
+            true,
         )
         .await
         .unwrap();
@@ -239,7 +244,7 @@ async fn native_gif_previews_verify_reuse_animate_and_stop_when_hidden() {
         assert!(!images.poll());
         stop.send(true).unwrap();
         assert!(
-            preview::load(message, store, source.as_ref(), cancel)
+            preview::load(message, store, source.as_ref(), cancel, true)
                 .await
                 .is_err()
         );
