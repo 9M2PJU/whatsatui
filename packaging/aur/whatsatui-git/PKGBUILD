@@ -4,7 +4,7 @@ pkgver=r55.b88e9ab
 pkgrel=1
 pkgdesc="Personal WhatsApp terminal client with a cyan Ratatui interface (git)"
 arch=('x86_64' 'aarch64')
-url="https://github.com/wuzi/whatsatui"
+url="https://github.com/9M2PJU/whatsatui"
 license=('MIT')
 depends=('gcc-libs' 'glibc')
 optdepends=('mpv: voice-message and video playback'
@@ -16,7 +16,7 @@ optdepends=('mpv: voice-message and video playback'
 makedepends=('git' 'cargo' 'pkgconf')
 provides=('whatsatui')
 conflicts=('whatsatui')
-source=("$pkgname::git+https://github.com/wuzi/whatsatui.git")
+source=("$pkgname::git+https://github.com/9M2PJU/whatsatui.git")
 sha256sums=('SKIP')
 
 pkgver() {
