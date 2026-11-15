@@ -65,6 +65,11 @@ fn who(message: &MessageRecord, names: &HashMap<&str, &str>) -> String {
             })
     }
 }
+/// Per-frame lookup tables shared by every message header.
+struct Caches<'a> {
+    names: &'a HashMap<&'a str, &'a str>,
+    receipt_counts: &'a HashMap<&'a MessageKey, (usize, usize)>,
+}
 fn header(
     message: &MessageRecord,
     show_name: bool,
@@ -72,8 +77,7 @@ fn header(
     width: usize,
     view: &ViewModel,
     config: &Config,
-    names: &HashMap<&str, &str>,
-    receipt_counts: &HashMap<&MessageKey, (usize, usize)>,
+    caches: &Caches<'_>,
 ) -> Line<'static> {
     let mut details = Vec::new();
     if show_time {
@@ -83,7 +87,7 @@ fn header(
         details.push("edited".into());
     }
     if message.key.chat.0.ends_with("@g.us")
-        && let Some((delivered, read)) = receipt_counts.get(&message.key)
+        && let Some((delivered, read)) = caches.receipt_counts.get(&message.key)
     {
         details.push(format!("delivered: {delivered} / read: {read}"));
     }
@@ -91,7 +95,7 @@ fn header(
     let mut spans = vec![];
     if show_name {
         // Keep timing/status visible even when the contact has a long name.
-        let name = who(message, names);
+        let name = who(message, caches.names);
         let budget = width.saturating_sub(details.width() + 2).max(3).min(width);
         let name = if name.width() > budget {
             let mut short = String::new();
@@ -185,6 +189,10 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
         entry.1 += usize::from(receipt.state == ReceiptState::Read);
     }
     let days: Vec<String> = view.messages.iter().map(|m| day(m.created_at_ms)).collect();
+    let caches = Caches {
+        names: &names,
+        receipt_counts: &receipt_counts,
+    };
     let mut lines = vec![];
     let mut runs = vec![];
     for (index, message) in view.messages.iter().enumerate() {
@@ -205,16 +213,7 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
             );
         }
         let start = lines.len();
-        let heading = header(
-            message,
-            avatar,
-            avatar,
-            width,
-            view,
-            config,
-            &names,
-            &receipt_counts,
-        );
+        let heading = header(message, avatar, avatar, width, view, config, &caches);
         let has_header = heading.width() > 0;
         if has_header {
             lines.push(gutter(heading, message, true, view, config, gutter_width));
@@ -498,6 +497,10 @@ pub(super) fn render(
             entry.0 += 1;
             entry.1 += usize::from(receipt.state == ReceiptState::Read);
         }
+        let caches = Caches {
+            names: &names,
+            receipt_counts: &receipt_counts,
+        };
         let context = gutter(
             header(
                 &view.messages[index],
@@ -506,8 +509,7 @@ pub(super) fn render(
                 layout.area.width.saturating_sub(layout.gutter) as usize,
                 view,
                 config,
-                &names,
-                &receipt_counts,
+                &caches,
             ),
             &view.messages[index],
             true,

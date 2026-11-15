@@ -141,20 +141,22 @@ where
         _temporary: temporary,
     })
 }
+/// Cache key for the timeline viewport: layout inputs only.
+type ViewportKey = (
+    u16,
+    u16,
+    usize,
+    Option<crate::app::model::MessageKey>,
+    usize,
+    Option<crate::app::model::MessageKey>,
+);
 struct TerminalScreen {
     avatars: crate::ui::Avatars,
     images: crate::ui::Images,
     terminal: ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
     guard: crate::terminal::TerminalGuard,
     viewport: Option<crate::app::TimelineViewport>,
-    viewport_key: Option<(
-        u16,
-        u16,
-        usize,
-        Option<crate::app::model::MessageKey>,
-        usize,
-        Option<crate::app::model::MessageKey>,
-    )>,
+    viewport_key: Option<ViewportKey>,
     interaction: Option<crate::ui::InteractionMap>,
 }
 impl Screen for TerminalScreen {
