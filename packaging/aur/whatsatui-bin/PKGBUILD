@@ -21,7 +21,7 @@ sha256sums=('SKIP')
 package() {
   install -Dm755 whatsapp-tui "$pkgdir/usr/bin/whatsapp-tui"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  install -Dm644 config.toml.example "$pkgdir/usr/share/doc/$pkgname/config.toml.example"
+  install -Dm644 config.toml "$pkgdir/usr/share/doc/$pkgname/config.toml.example"
   install -Dm644 whatsapp-tui.desktop "$pkgdir/usr/share/applications/whatsapp-tui.desktop"
   install -Dm644 icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/whatsapp-tui.svg"
 }
