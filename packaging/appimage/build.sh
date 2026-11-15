@@ -7,7 +7,7 @@ cd -- "$(dirname -- "$0")/../.."
 
 VERSION="${1:-0.2.0}"
 APPDIR="dist/AppDir"
-rm -rf dist
+rm -rf "$APPDIR" dist/*.AppImage dist/*.AppImage.sha256
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
 
 if [ ! -x target/release/whatsapp-tui ]; then
