@@ -112,7 +112,7 @@ All new message controls can be remapped in `[bindings.messages]` and `[bindings
 
 ## Images, stickers, and files
 
-Images and stickers appear below their message label, with captions underneath. Visible previews load automatically, one at a time, from verified media; they never launch a viewer. Ghostty locally uses Kitty graphics. Other terminals, tmux, and SSH use colored half blocks. No terminal input query or tmux configuration change is needed. PNG/JPEG/WebP decode within limits of 16 MiB, 16 megapixels, and 64 MiB of decoder allocations. Animated WebP plays while visible, including in the sticker picker and sent-message previews. Playback is sampled at up to 20 fps, with at most 96 thumbnails per preview; unusually large, long, or damaged animations fall back to the first frame. Hidden animations stop and release their terminal graphics. Unsupported/damaged media shows a readable notice and keeps its download action.
+Images and stickers appear below their message label, with captions underneath. Visible previews load automatically from verified media unless `[media] auto_photos` is false; they never launch a viewer. Ghostty locally uses Kitty graphics. Other terminals, tmux, and SSH use colored half blocks. No terminal input query or tmux configuration change is needed. PNG/JPEG/WebP decode within limits of 16 MiB, 16 megapixels, and 64 MiB of decoder allocations. Animated WebP plays while visible, including in the sticker picker and sent-message previews. Playback is sampled at up to 20 fps, with at most 96 thumbnails per preview; unusually large, long, or damaged animations fall back to the first frame. Hidden animations stop and release their terminal graphics. Unsupported/damaged media shows a readable notice and keeps its download action.
 
 Set `[media] inline = false` to use labels and explicit downloads only. `protocol = "auto"` is the default; `"kitty"` or `"halfblocks"` selects a renderer for local terminals. The renderer keeps at most eight visible previews and clears their graphics when you change conversations or open overlays.
 
@@ -156,7 +156,9 @@ Click an audio or video message's `[Play]` row, select it in Messages and press 
 
 While playing or paused, the header shows clickable pause/resume, progress, speed, and stop controls. Playback continues when you change chats. Starting another audio or video stops the previous one; new arrivals never start playback automatically. Quit, account changes, or deletion/expiry of the source stop playback. A missing player, damaged file, or unavailable output shows an error; select the message and play again to retry. Listening does not send a special played receipt.
 
-Only newly received or replayed audio/videos with a complete media reference can play. Existing `[audio]` or `[video]` placeholders from older versions lack that reference; ask for a resend or wait for a history replay. View-once audio and videos are excluded. Audio sent as a generic document keeps its download/open actions. Recording and sending voice messages/videos are not included. Seeking is available in the mpv video window; the TUI has no seek control.
+Only newly received or replayed audio/videos with a complete media reference can play. Existing `[audio]` or `[video]` placeholders from older versions lack that reference; ask for a resend or wait for a history replay. View-once audio and videos are excluded.
+
+Background auto-download follows `[media] auto_photos`, `auto_videos`, `auto_audio`, and `auto_documents`, like WhatsApp's per-kind storage setting. Photos cover image/sticker/GIF previews; the rest fetch the full file once the message is visible, so a later download, open, or play is instant. Anything left off downloads explicitly with `d`, exactly once, into the shared verified cache. Audio sent as a generic document keeps its download/open actions. Recording and sending voice messages/videos are not included. Seeking is available in the mpv video window; the TUI has no seek control.
 
 In the video window, use Space to pause/resume, Left/Right to seek, `f` for fullscreen and `q` to close. TUI pause/resume and speed controls follow changes made in the window. Closing the window ends playback normally; the message offers Replay. The existing `[audio].player` setting is used for both audio and video.
 
@@ -193,6 +195,8 @@ focus = "#00b4b4"
 ```
 
 Bindings are scoped to each pane or overlay. Duplicate keys, missing essential actions, and printable composer/search shortcuts are rejected at startup before raw terminal mode. An invalid file reports a configuration error. Demo uses built-in defaults unless you explicitly pass `--config`; it rejects `--data-dir`.
+
+Press F2 anywhere for the settings overlay: arrows move, Enter toggles, Esc closes. It covers inline images, profile photos, the image protocol, the four media auto-download kinds, notifications, and the mouse. Changes save to the config file immediately, except in demo mode where they last for the session. The `[media] auto_photos`, `auto_videos`, `auto_audio`, and `auto_documents` values do the same job from the file; photos default on, the rest default off.
 
 ## Storage and session recovery
 

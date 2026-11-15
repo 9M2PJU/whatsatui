@@ -140,6 +140,7 @@ pub fn render_interactive(
     avatars: &mut Avatars,
 ) -> InteractionMap {
     let mut hits = InteractionMap::new(frame.area(), view);
+    images.set_auto_photos(config.media.auto_photos);
     images.begin_frame();
     avatars.begin_frame();
     render_content(frame, view, config, images, avatars, &mut hits);

@@ -10,16 +10,24 @@ pub(crate) enum SettingRow {
     InlineImages,
     Avatars,
     Protocol,
+    AutoPhotos,
+    AutoVideos,
+    AutoAudio,
+    AutoDocuments,
     Notifications,
     Previews,
     Mouse,
 }
 
 impl SettingRow {
-    pub(crate) const ALL: [SettingRow; 6] = [
+    pub(crate) const ALL: [SettingRow; 10] = [
         SettingRow::InlineImages,
         SettingRow::Avatars,
         SettingRow::Protocol,
+        SettingRow::AutoPhotos,
+        SettingRow::AutoVideos,
+        SettingRow::AutoAudio,
+        SettingRow::AutoDocuments,
         SettingRow::Notifications,
         SettingRow::Previews,
         SettingRow::Mouse,
@@ -30,6 +38,10 @@ impl SettingRow {
             SettingRow::InlineImages => "Inline images",
             SettingRow::Avatars => "Profile photos",
             SettingRow::Protocol => "Image protocol",
+            SettingRow::AutoPhotos => "Auto-download photos",
+            SettingRow::AutoVideos => "Auto-download videos",
+            SettingRow::AutoAudio => "Auto-download audio",
+            SettingRow::AutoDocuments => "Auto-download documents",
             SettingRow::Notifications => "Notifications",
             SettingRow::Previews => "Notification previews",
             SettingRow::Mouse => "Mouse",
@@ -48,6 +60,10 @@ impl SettingRow {
                 crate::config::ImageProtocol::Kitty => "kitty".into(),
                 crate::config::ImageProtocol::Halfblocks => "halfblocks".into(),
             },
+            SettingRow::AutoPhotos => on(config.media.auto_photos),
+            SettingRow::AutoVideos => on(config.media.auto_videos),
+            SettingRow::AutoAudio => on(config.media.auto_audio),
+            SettingRow::AutoDocuments => on(config.media.auto_documents),
             SettingRow::Notifications => on(config.notifications.enabled),
             SettingRow::Previews => on(config.notifications.previews),
             SettingRow::Mouse => on(config.ui.mouse),
@@ -88,6 +104,22 @@ pub(super) fn toggle(app: &mut App, index: usize, effects: &mut Vec<Effect>) {
         SettingRow::Notifications => {
             app.config.notifications.enabled = !app.config.notifications.enabled;
             "Notifications"
+        }
+        SettingRow::AutoPhotos => {
+            app.config.media.auto_photos = !app.config.media.auto_photos;
+            "Auto-download photos"
+        }
+        SettingRow::AutoVideos => {
+            app.config.media.auto_videos = !app.config.media.auto_videos;
+            "Auto-download videos"
+        }
+        SettingRow::AutoAudio => {
+            app.config.media.auto_audio = !app.config.media.auto_audio;
+            "Auto-download audio"
+        }
+        SettingRow::AutoDocuments => {
+            app.config.media.auto_documents = !app.config.media.auto_documents;
+            "Auto-download documents"
         }
         SettingRow::Previews => {
             app.config.notifications.previews = !app.config.notifications.previews;

@@ -62,6 +62,7 @@ pub async fn load(
     store: Store,
     downloader: &dyn Downloader,
     cancel: watch::Receiver<bool>,
+    auto_fetch: bool,
 ) -> Result<Preview, String> {
     check_cancel(&cancel)?;
     if let crate::app::model::MessageBody::LocalImage { image, .. } = &message.body {
@@ -108,9 +109,12 @@ pub async fn load(
         cache::Cache::open(store.data_dir(), true)?.ok_or("Media busy; preview will retry")?;
     let id = cache::token(&message.key, &attachment);
     let path = cache.path(&id, &attachment);
-    if !cache.manifest(&id).is_some_and(|m| m.key == message.key)
-        || cache::verify(path.clone(), &attachment).await.is_err()
-    {
+    let cached = cache.manifest(&id).is_some_and(|m| m.key == message.key)
+        && cache::verify(path.clone(), &attachment).await.is_ok();
+    if !cached {
+        if !auto_fetch {
+            return Err("Automatic download is off".into());
+        }
         cache.remove(&id)?;
         cache.reserve(attachment.size)?;
         let temporary = cache.temporary()?;

@@ -246,6 +246,7 @@ pub async fn run(mut app: App, store: Store, backend: BackendHandle) -> Result<(
         store.clone(),
         backend.media.clone(),
         app.config.media.protocol,
+        app.config.media.auto_photos,
     );
     let avatars = crate::ui::Avatars::new(
         store.data_dir().to_owned(),
@@ -433,6 +434,20 @@ async fn execute_with_media(
                 account,
                 result,
             });
+        }
+        Effect::AutoDownload { message } => {
+            // Silent by design: background fetch shares the verified media
+            // cache with explicit downloads, so a later `d` or play is instant.
+            let _ = crate::media::execute(
+                *message,
+                crate::media::MediaAction::Download,
+                store,
+                downloader,
+                &crate::desktop::NativeDesktop,
+                cancel,
+            )
+            .await;
+            return None;
         }
         Effect::DesktopAction {
             request,
