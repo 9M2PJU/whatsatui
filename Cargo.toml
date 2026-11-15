@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 whatsapp-rust = { version = "=0.7.0", default-features = false, features = ["sqlite-storage", "tokio-transport", "tokio-runtime", "ureq-client", "tokio-native", "signal"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "process", "signal", "sync", "time", "io-util", "test-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "process", "signal", "sync", "time", "io-std", "io-util", "test-util"] }
 ratatui = "0.30"
 crossterm = { version = "0.29", features = ["event-stream"] }
 diesel = { version = "2.3", features = ["sqlite"] }
