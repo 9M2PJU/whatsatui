@@ -50,7 +50,7 @@ jobs:
             -C "$GITHUB_WORKSPACE" LICENSE \
             -C "$GITHUB_WORKSPACE/examples" config.toml \
             -C "$GITHUB_WORKSPACE/packaging" whatsapp-tui.desktop icon.svg
-          (cd dist && sha256sum whatsatui-* whatsapp-tui* || true | tee SHA256SUMS)
+          (cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS)
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
