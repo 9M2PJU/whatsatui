@@ -30,6 +30,7 @@ const CAPACITY: usize = 8;
 #[derive(Clone)]
 struct Request {
     draft: bool,
+    auto_fetch: bool,
     id: String,
     message: MessageRecord,
     size: Size,
@@ -67,6 +68,7 @@ pub struct Images {
     service: Option<(Store, Arc<dyn Downloader>)>,
     kitty: bool,
     font: FontSize,
+    auto_photos: bool,
     wanted: Vec<Request>,
     cache: HashMap<String, Ready>,
     active: Option<Job>,
@@ -83,6 +85,7 @@ impl Default for Images {
                 width: 10,
                 height: 20,
             },
+            auto_photos: true,
             wanted: vec![],
             cache: HashMap::new(),
             active: None,
@@ -110,9 +113,15 @@ impl Images {
     pub(super) fn settings(&self) -> (bool, FontSize) {
         (self.kitty, self.font)
     }
-    pub fn new(store: Store, downloader: Arc<dyn Downloader>, protocol: ImageProtocol) -> Self {
+    pub fn new(
+        store: Store,
+        downloader: Arc<dyn Downloader>,
+        protocol: ImageProtocol,
+        auto_photos: bool,
+    ) -> Self {
         let mut result = Self::default();
         result.service = Some((store, downloader));
+        result.auto_photos = auto_photos;
         result.kitty = use_kitty(
             protocol,
             &std::env::var("TERM_PROGRAM").unwrap_or_default(),
@@ -195,8 +204,11 @@ impl Images {
             size.height
         );
         if self.wanted.len() < CAPACITY && !self.wanted.iter().any(|r| r.id == id) {
+            let auto_fetch =
+                draft || !matches!(&message.body, MessageBody::Media(_)) || self.auto_photos;
             self.wanted.push(Request {
                 draft,
+                auto_fetch,
                 id: id.clone(),
                 message: message.clone(),
                 size,
@@ -332,8 +344,14 @@ impl Images {
                     Err("No attached image".into())
                 }
             } else {
-                media::preview::load(request.message, store, downloader.as_ref(), cancel.clone())
-                    .await
+                media::preview::load(
+                    request.message,
+                    store,
+                    downloader.as_ref(),
+                    cancel.clone(),
+                    request.auto_fetch,
+                )
+                .await
             };
             let protocol = match result {
                 Ok(image) => tokio::task::spawn_blocking(move || {
