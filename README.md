@@ -34,11 +34,13 @@ Arch Linux (AUR):
 yay -S whatsatui
 # or prebuilt binary from the GitHub release
 yay -S whatsatui-bin
+# or latest git main
+yay -S whatsatui-git
 ```
 
 Packaging templates live in `packaging/`: `nfpm.yaml` for deb/rpm,
-`appimage/` for the AppImage, `aur/whatsatui/` and `aur/whatsatui-bin/`
-for the AUR source and binary packages, plus `whatsapp-tui.desktop` and `icon.svg`.
+`appimage/` for the AppImage, `aur/whatsatui/`, `aur/whatsatui-bin/`, and
+`aur/whatsatui-git/` for the AUR source, binary, and git packages, plus `whatsapp-tui.desktop` and `icon.svg`.
 
 Optional runtime helpers (recommended, not required): `mpv` for voice/video
 playback, `ffmpeg`/`ffprobe` for GIF previews, `xdg-utils` for opening links
