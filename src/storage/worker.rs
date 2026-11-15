@@ -902,26 +902,33 @@ pub(super) fn snapshot(
     }
 
     // One round trip for both bounds instead of two EXISTS queries.
+    // The flags are plain text, not JSON, so read the column directly
+    // instead of going through the JSON-parsing rows() helper.
+    #[derive(QueryableByName)]
+    struct Bounds {
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        data: String,
+    }
     let (has_older, has_newer) = match (messages.first(), messages.last()) {
         (Some(first), Some(last)) => {
             let sql = "SELECT (CASE WHEN EXISTS(SELECT 1 FROM messages WHERE account=? AND chat=? AND (created_at_ms < ? OR (created_at_ms = ? AND key < ?))) THEN '1' ELSE '0' END || CASE WHEN EXISTS(SELECT 1 FROM messages WHERE account=? AND chat=? AND (created_at_ms > ? OR (created_at_ms = ? AND key > ?))) THEN '1' ELSE '0' END) AS data";
-            let flags: Vec<String> = rows(
-                c,
-                sql,
-                &[
-                    &a.0,
-                    &chat.0,
-                    &first.created_at_ms.to_string(),
-                    &first.created_at_ms.to_string(),
-                    &json(&first.key)?,
-                    &a.0,
-                    &chat.0,
-                    &last.created_at_ms.to_string(),
-                    &last.created_at_ms.to_string(),
-                    &json(&last.key)?,
-                ],
-            )?;
-            let flags = flags.first().map(String::as_str).unwrap_or("00");
+            let first_ts = first.created_at_ms.to_string();
+            let last_ts = last.created_at_ms.to_string();
+            let first_key = json(&first.key)?;
+            let last_key = json(&last.key)?;
+            let flags: Vec<Bounds> = diesel::sql_query(sql)
+                .bind::<diesel::sql_types::Text, _>(&a.0)
+                .bind::<diesel::sql_types::Text, _>(&chat.0)
+                .bind::<diesel::sql_types::Text, _>(&first_ts)
+                .bind::<diesel::sql_types::Text, _>(&first_ts)
+                .bind::<diesel::sql_types::Text, _>(&first_key)
+                .bind::<diesel::sql_types::Text, _>(&a.0)
+                .bind::<diesel::sql_types::Text, _>(&chat.0)
+                .bind::<diesel::sql_types::Text, _>(&last_ts)
+                .bind::<diesel::sql_types::Text, _>(&last_ts)
+                .bind::<diesel::sql_types::Text, _>(&last_key)
+                .load(c)?;
+            let flags = flags.first().map(|f| f.data.as_str()).unwrap_or("00");
             (flags.starts_with('1'), flags.ends_with('1'))
         }
         _ => (false, false),
