@@ -22,6 +22,8 @@ pub(super) struct Timeline {
     sticky: Option<usize>,
     sticky_extra: bool,
     content_offset: u16,
+    /// Blank rows kept above short content so the last message sits at the bottom.
+    y_offset: u16,
     gutter: u16,
     anchor_end: usize,
 }
@@ -298,6 +300,8 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
                 sticky.is_some_and(|index| !runs[index].header || runs[index].start < visible[0]);
         }
     }
+    let final_rows = visible.len().saturating_add(content_offset as usize);
+    let y_offset = (height as u16).saturating_sub(final_rows.min(height) as u16);
     Timeline {
         area,
         lines,
@@ -306,6 +310,7 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
         sticky,
         sticky_extra,
         content_offset,
+        y_offset,
         gutter: gutter_width,
         anchor_end,
     }
@@ -322,7 +327,7 @@ impl Timeline {
         Some((
             Rect::new(
                 self.area.x,
-                self.area.y + self.content_offset + first as u16,
+                self.area.y + self.y_offset + self.content_offset + first as u16,
                 self.area.width,
                 count as u16,
             ),
@@ -365,7 +370,12 @@ pub(super) fn render(
         && let Some(index) = layout.sticky
     {
         hits.push(
-            Rect::new(layout.area.x, layout.area.y, layout.area.width, 1),
+            Rect::new(
+                layout.area.x,
+                layout.area.y + layout.y_offset,
+                layout.area.width,
+                1,
+            ),
             Target::Message(view.messages[index].key.clone()),
         );
     }
@@ -374,7 +384,7 @@ pub(super) fn render(
             hits.push(
                 Rect::new(
                     layout.area.x,
-                    layout.area.y + layout.content_offset + y as u16,
+                    layout.area.y + layout.y_offset + layout.content_offset + y as u16,
                     layout.area.width,
                     1,
                 ),
@@ -473,7 +483,13 @@ pub(super) fn render(
         // separator boundary. Keep its space above the content, not below it.
         visible.insert(0, Line::default());
     }
-    frame.render_widget(Paragraph::new(visible), layout.area);
+    let content_area = Rect::new(
+        layout.area.x,
+        layout.area.y + layout.y_offset,
+        layout.area.width,
+        layout.area.height.saturating_sub(layout.y_offset),
+    );
+    frame.render_widget(Paragraph::new(visible), content_area);
     if !graphics {
         return;
     }
