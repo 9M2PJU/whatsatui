@@ -99,7 +99,7 @@ pub(super) fn toggle(app: &mut App, index: usize, effects: &mut Vec<Effect>) {
             "Mouse"
         }
     };
-    if let Overlay::Settings { selected } = &mut app.view.overlay {
+    if let Some(Overlay::Settings { selected }) = &mut app.view.overlay {
         *selected = index.min(SettingRow::ALL.len().saturating_sub(1));
     }
     if app.config_path.is_some() {

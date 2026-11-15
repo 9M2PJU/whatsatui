@@ -200,6 +200,7 @@ impl App {
             match action {
                 crate::media::MediaAction::Download => "Downloading attachment…",
                 crate::media::MediaAction::Open => "Opening downloaded file…",
+                crate::media::MediaAction::View => "Opening…",
             }
             .into(),
         );
