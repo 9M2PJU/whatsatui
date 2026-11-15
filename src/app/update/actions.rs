@@ -153,6 +153,29 @@ impl App {
         };
         self.start_desktop_action(message, action, effects);
     }
+    /// Double-click on a photo or file: download when needed, then open it.
+    pub(super) fn view_selected_image(&mut self, effects: &mut Vec<Effect>) {
+        let Some(message) = self
+            .selected()
+            .filter(|m| crate::message_actions::viewable_file(m))
+            .cloned()
+        else {
+            return;
+        };
+        if self.desktop_request.is_some() {
+            self.view.notice = Some("An attachment or desktop action is still running".into());
+            return;
+        }
+        let request = self.request();
+        self.desktop_request = Some((request, message.key.account.clone()));
+        self.view.overlay = None;
+        self.view.notice = Some("Opening…".into());
+        effects.push(Effect::MediaAction {
+            request,
+            message: Box::new(message),
+            action: crate::media::MediaAction::View,
+        });
+    }
     pub(super) fn start_media_action(
         &mut self,
         action: crate::media::MediaAction,

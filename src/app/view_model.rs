@@ -25,6 +25,9 @@ pub enum Overlay {
     Reactions(Box<MessageMenu>),
     MessageLinks(Box<MessageLinks>),
     MessageSearch(Box<super::search::MessageSearch>),
+    Settings {
+        selected: usize,
+    },
     Search {
         editor: Editor,
         selected: usize,

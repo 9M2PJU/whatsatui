@@ -9,6 +9,7 @@ mod mouse;
 mod navigation;
 mod notifications;
 mod search;
+pub(crate) mod settings;
 mod stickers;
 #[derive(Clone, Debug)]
 pub enum Effect {
@@ -17,6 +18,7 @@ pub enum Effect {
         tokio::sync::watch::Receiver<crate::notifications::Context>,
     ),
     Audio(Option<crate::audio::Request>),
+    SetMouse(bool),
     LoadOriginal {
         request: RequestId,
         key: MessageKey,
@@ -186,6 +188,7 @@ struct PendingSend {
 pub struct App {
     notifications: crate::notifications::Inbox,
     pub config: Config,
+    config_path: Option<std::path::PathBuf>,
     view: ViewModel,
     rendered: Option<crate::ui::InteractionMap>,
     original_request: Option<(RequestId, MessageKey, MessageKey)>,
@@ -221,6 +224,7 @@ impl App {
         Self {
             notifications: crate::notifications::Inbox::new(chrono::Utc::now().timestamp_millis()),
             config,
+            config_path: None,
             rendered: None,
             original_request: None,
             last_click: None,
@@ -308,12 +312,22 @@ impl App {
                 });
             }
         }
-        view.chats = self.chat_summaries();
+        // Patch draft flags in place: view already cloned chats once,
+        // so avoid a second full clone via chat_summaries().
+        for chat in &mut view.chats {
+            if let Some(draft) = self.drafts.get(&chat.chat) {
+                chat.has_draft = draft.data.has_content();
+            }
+        }
         view.search_results = self.search_results();
         view
     }
     pub fn set_truecolor(&mut self, value: bool) {
         self.view.truecolor = value;
+    }
+    /// Where settings are persisted. None means session-only (demo mode).
+    pub fn set_config_path(&mut self, path: std::path::PathBuf) {
+        self.config_path = Some(path);
     }
     /// Under sustained backpressure keep quit, text editing, and terminal state
     /// available; defer navigation that would enqueue more storage work.
@@ -356,6 +370,7 @@ impl App {
             Some(Overlay::Reactions(_)) => Context::Reactions,
             Some(Overlay::MessageLinks(_)) => Context::MessageLinks,
             Some(Overlay::MessageSearch(_)) => Context::MessageSearch,
+            Some(Overlay::Settings { .. }) => Context::Settings,
             Some(Overlay::Search { .. }) => Context::Search,
             Some(Overlay::Help) => Context::Help,
             Some(Overlay::Resend { .. }) => Context::Resend,
@@ -521,6 +536,12 @@ impl App {
                 .help_scroll
                 .saturating_add_signed(delta)
                 .min(self.help_max_scroll);
+            return;
+        }
+        if let Some(Overlay::Settings { selected }) = &mut self.view.overlay {
+            *selected = selected
+                .saturating_add_signed(delta)
+                .min(settings::SettingRow::ALL.len().saturating_sub(1));
             return;
         }
         if let Some(Overlay::Stickers(picker)) = &mut self.view.overlay {
@@ -813,6 +834,9 @@ impl App {
                 self.view.help_scroll = 0;
                 self.view.overlay = Some(Overlay::Help);
             }
+            A::Settings => {
+                self.view.overlay = Some(Overlay::Settings { selected: 0 });
+            }
             A::Next => self.move_selection(1, effects),
             A::Previous => self.move_selection(-1, effects),
             A::ScrollUp => self.scroll_timeline(-1, effects),
@@ -877,6 +901,14 @@ impl App {
                 }
                 if matches!(self.view.overlay, Some(Overlay::MessageSearch(_))) {
                     self.submit_or_open_message(effects);
+                    return;
+                }
+                let settings_selected = match &self.view.overlay {
+                    Some(Overlay::Settings { selected }) => Some(*selected),
+                    _ => None,
+                };
+                if let Some(selected) = settings_selected {
+                    settings::toggle(self, selected, effects);
                     return;
                 }
                 if let Some(Overlay::Search { selected, .. }) = &self.view.overlay {

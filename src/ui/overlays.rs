@@ -195,6 +195,48 @@ pub(super) fn render(
             );
             hits.popup(frame, r, view, config);
         }
+        Some(Overlay::Settings { selected }) => {
+            use crate::app::update::settings::SettingRow;
+            let r = centered(area, 56, SettingRow::ALL.len() as u16 + 6);
+            frame.render_widget(Clear, r);
+            let mut lines = vec![];
+            for (index, row) in SettingRow::ALL.iter().enumerate() {
+                let mut text = format!("{}: {}", row.label(), row.value(config),);
+                if let Some(hint) = row.hint() {
+                    text.push_str(&format!(" ({hint})"));
+                }
+                let current = index == *selected;
+                lines.push(Line::styled(
+                    format!("{} {text}", if current { ">" } else { " " }),
+                    if current {
+                        style(config, view, ThemeRole::Accent).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default()
+                    },
+                ));
+            }
+            lines.push(Line::from(""));
+            lines.push(Line::styled(
+                "enter toggles · esc closes · saves to config.toml",
+                style(config, view, ThemeRole::Hints),
+            ));
+            frame.render_widget(
+                Paragraph::new(lines).block(block(" Settings ".into(), true, view, config)),
+                r,
+            );
+            hits.popup(frame, r, view, config);
+            for index in 0..SettingRow::ALL.len() {
+                hits.push(
+                    Rect::new(
+                        r.x + 1,
+                        r.y + 1 + index as u16,
+                        r.width.saturating_sub(2),
+                        1,
+                    ),
+                    Target::Menu(index),
+                );
+            }
+        }
         Some(Overlay::Resend { message }) => {
             let r = centered(area, 64, 7);
             frame.render_widget(Clear, r);

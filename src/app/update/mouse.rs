@@ -108,7 +108,17 @@ impl App {
                 self.view.selected_message = Some(key);
                 self.reading_position();
                 if button == MouseButton::Right || double {
-                    self.action(ActionId::MessageActions, effects);
+                    // Double-clicking a photo or file opens it in the
+                    // viewer; everything else shows the message actions menu.
+                    if double
+                        && self
+                            .selected()
+                            .is_some_and(crate::message_actions::viewable_file)
+                    {
+                        self.view_selected_image(effects);
+                    } else {
+                        self.action(ActionId::MessageActions, effects);
+                    }
                 }
             }
             Target::Quote(key)
@@ -142,6 +152,10 @@ impl App {
                 _ => {}
             },
             Target::Menu(index) if button == MouseButton::Left => {
+                if matches!(self.view.overlay, Some(Overlay::Settings { .. })) {
+                    settings::toggle(self, index, effects);
+                    return;
+                }
                 let current = match &self.view.overlay {
                     Some(
                         Overlay::Search { selected, .. }

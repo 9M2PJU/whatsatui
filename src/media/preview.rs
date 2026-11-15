@@ -8,7 +8,7 @@ use tokio::sync::watch;
 
 pub const MAX_BYTES: u64 = 16 * 1024 * 1024;
 pub const MAX_PIXELS: u64 = 16_000_000;
-pub(crate) static DECODERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(1);
+pub(crate) static DECODERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
 pub fn decode(bytes: &[u8]) -> Result<DynamicImage, String> {
     if bytes.len() as u64 > MAX_BYTES {

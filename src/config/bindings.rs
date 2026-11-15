@@ -1,6 +1,6 @@
 use super::ConfigError;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 #[derive(Clone, Debug)]
 pub struct Bindings {
@@ -13,7 +13,7 @@ struct Binding {
     key: KeyEvent,
     label: String,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Context {
     Reactions,
@@ -29,9 +29,10 @@ pub enum Context {
     MessageLinks,
     Help,
     Resend,
+    Settings,
     Global,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionId {
     FocusComposer,
@@ -71,6 +72,7 @@ pub enum ActionId {
     Back,
     Reply,
     Resend,
+    Settings,
     PageUp,
     PageDown,
     ScrollUp,
@@ -78,7 +80,7 @@ pub enum ActionId {
     Bottom,
     Confirm,
 }
-pub(super) type Overrides = BTreeMap<Context, BTreeMap<ActionId, Vec<String>>>;
+pub(crate) type Overrides = BTreeMap<Context, BTreeMap<ActionId, Vec<String>>>;
 impl ActionId {
     pub fn label(self) -> &'static str {
         match self {
@@ -119,6 +121,7 @@ impl ActionId {
             Self::Back => "back",
             Self::Reply => "reply",
             Self::Resend => "resend",
+            Self::Settings => "settings",
             Self::PageUp => "older",
             Self::PageDown => "newer",
             Self::ScrollUp => "scroll up",
@@ -158,6 +161,7 @@ impl Default for Bindings {
                 (A::Search, "ctrl-p"),
                 (A::MessageSearch, "ctrl-f"),
                 (A::Help, "f1"),
+                (A::Settings, "f2"),
             ] {
                 b.add(c, a, k);
             }
@@ -246,6 +250,17 @@ impl Default for Bindings {
         ] {
             b.add(C::Search, a, k);
             b.add(C::MessageSearch, a, k);
+        }
+        for (action, key) in [
+            (A::Open, "enter"),
+            (A::Open, "space"),
+            (A::Back, "esc"),
+            (A::Next, "down"),
+            (A::Next, "j"),
+            (A::Previous, "up"),
+            (A::Previous, "k"),
+        ] {
+            b.add(C::Settings, action, key);
         }
         b.add(C::Help, A::Back, "esc");
         for (action, key) in [
@@ -368,6 +383,7 @@ impl Bindings {
             Context::MessageLinks,
             Context::Help,
             Context::Resend,
+            Context::Settings,
             Context::Global,
         ] {
             let entries: Vec<_> = result
@@ -394,6 +410,7 @@ impl Bindings {
                     | Context::MessageLinks
                     | Context::Attachment
                     | Context::Emoji
+                    | Context::Settings
             ) {
                 required.extend([ActionId::Open, ActionId::Back]);
             }
@@ -453,6 +470,7 @@ fn allowed(c: Context, a: ActionId) -> bool {
                 | A::MessageSearch
                 | A::Unread
                 | A::Help
+                | A::Settings
                 | A::Next
                 | A::Previous
                 | A::Open
@@ -488,6 +506,7 @@ fn allowed(c: Context, a: ActionId) -> bool {
                 | A::Search
                 | A::MessageSearch
                 | A::Help
+                | A::Settings
                 | A::Send
                 | A::Newline
                 | A::RemoveReply
@@ -518,6 +537,7 @@ fn allowed(c: Context, a: ActionId) -> bool {
         ),
         C::MessageLinks => matches!(a, A::Back | A::Open | A::Next | A::Previous | A::CopyText),
         C::Help => matches!(a, A::Back | A::Next | A::Previous | A::PageUp | A::PageDown),
+        C::Settings => matches!(a, A::Back | A::Open | A::Next | A::Previous),
         C::Resend => matches!(a, A::Back | A::Confirm),
     }
 }

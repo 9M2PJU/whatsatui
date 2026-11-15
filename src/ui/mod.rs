@@ -223,6 +223,20 @@ fn render_content(
         config,
         hits,
     );
+    let settings = Rect::new(
+        regions.header.right().saturating_sub(17),
+        regions.header.y,
+        10,
+        1,
+    );
+    frame.render_widget(
+        Paragraph::new(" Settings ").style(style(config, view, ThemeRole::Accent)),
+        settings,
+    );
+    hits.push(
+        settings,
+        Target::Action(crate::config::bindings::ActionId::Settings),
+    );
     let help = Rect::new(
         regions.header.right().saturating_sub(7),
         regions.header.y,

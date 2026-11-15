@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::model::*;
+use std::collections::HashMap;
 
 const GROUP_GAP_MS: i64 = 10 * 60 * 1_000;
 
@@ -36,19 +37,32 @@ fn day(ms: i64) -> String {
         })
         .unwrap_or_else(|| "Unknown date".into())
 }
-fn grouped(previous: &MessageRecord, current: &MessageRecord) -> bool {
-    previous.key.sender == current.key.sender
+fn grouped(previous: &MessageRecord, current: &MessageRecord, same_day: bool) -> bool {
+    same_day
+        && previous.key.sender == current.key.sender
         && previous.key.from_me == current.key.from_me
         && previous.key.chat == current.key.chat
         && current.created_at_ms >= previous.created_at_ms
         && current.created_at_ms.saturating_sub(previous.created_at_ms) < GROUP_GAP_MS
-        && day(previous.created_at_ms) == day(current.created_at_ms)
 }
-fn who(message: &MessageRecord, view: &ViewModel) -> String {
+fn who(message: &MessageRecord, names: &HashMap<&str, &str>) -> String {
     if message.key.from_me {
         "You".into()
     } else {
-        sender(view, &message.key.sender.0)
+        names
+            .get(message.key.sender.0.as_str())
+            .map(|s| single(s))
+            .unwrap_or_else(|| {
+                single(
+                    message
+                        .key
+                        .sender
+                        .0
+                        .strip_suffix("@s.whatsapp.net")
+                        .or(message.key.sender.0.strip_suffix("@lid"))
+                        .unwrap_or(&message.key.sender.0),
+                )
+            })
     }
 }
 fn header(
@@ -58,6 +72,8 @@ fn header(
     width: usize,
     view: &ViewModel,
     config: &Config,
+    names: &HashMap<&str, &str>,
+    receipt_counts: &HashMap<&MessageKey, (usize, usize)>,
 ) -> Line<'static> {
     let mut details = Vec::new();
     if show_time {
@@ -66,28 +82,16 @@ fn header(
     if message.edited_at_ms.is_some() {
         details.push("edited".into());
     }
-    if message.key.chat.0.ends_with("@g.us") {
-        let receipts: Vec<_> = view
-            .receipts
-            .iter()
-            .filter(|r| r.key == message.key)
-            .collect();
-        if !receipts.is_empty() {
-            details.push(format!(
-                "delivered: {} / read: {}",
-                receipts.len(),
-                receipts
-                    .iter()
-                    .filter(|r| r.state == ReceiptState::Read)
-                    .count()
-            ));
-        }
+    if message.key.chat.0.ends_with("@g.us")
+        && let Some((delivered, read)) = receipt_counts.get(&message.key)
+    {
+        details.push(format!("delivered: {delivered} / read: {read}"));
     }
     let details = details.join(" · ");
     let mut spans = vec![];
     if show_name {
         // Keep timing/status visible even when the contact has a long name.
-        let name = who(message, view);
+        let name = who(message, names);
         let budget = width.saturating_sub(details.width() + 2).max(3).min(width);
         let name = if name.width() > budget {
             let mut short = String::new();
@@ -165,26 +169,52 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
         2
     };
     let width = area.width.saturating_sub(gutter_width).max(1) as usize;
+    // Hoist per-frame work out of the per-message loop: one clock read, one
+    // chat-name map, one receipt rollup, and one date format per message.
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let names: HashMap<&str, &str> = view
+        .chats
+        .iter()
+        .map(|c| (c.chat.0.as_str(), c.name.as_str()))
+        .collect();
+    let mut receipt_counts: HashMap<&MessageKey, (usize, usize)> =
+        HashMap::with_capacity(view.receipts.len());
+    for receipt in &view.receipts {
+        let entry = receipt_counts.entry(&receipt.key).or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += usize::from(receipt.state == ReceiptState::Read);
+    }
+    let days: Vec<String> = view.messages.iter().map(|m| day(m.created_at_ms)).collect();
     let mut lines = vec![];
     let mut runs = vec![];
     for (index, message) in view.messages.iter().enumerate() {
+        let same_day = index.checked_sub(1).is_none_or(|i| days[i] == days[index]);
         let previous = index.checked_sub(1).map(|i| &view.messages[i]);
-        let new_day = previous.is_none_or(|p| day(p.created_at_ms) != day(message.created_at_ms));
-        let avatar = previous.is_none_or(|p| !grouped(p, message));
+        let new_day = !same_day;
+        let avatar = previous.is_none_or(|p| !grouped(p, message, same_day));
         if index > 0 && avatar {
             lines.push(Line::from(""));
         }
         if new_day {
             lines.push(
                 Line::styled(
-                    format!("── {} ──", day(message.created_at_ms)),
+                    format!("── {} ──", days[index]),
                     style(config, view, ThemeRole::Inactive),
                 )
                 .centered(),
             );
         }
         let start = lines.len();
-        let heading = header(message, avatar, avatar, width, view, config);
+        let heading = header(
+            message,
+            avatar,
+            avatar,
+            width,
+            view,
+            config,
+            &names,
+            &receipt_counts,
+        );
         let has_header = heading.width() > 0;
         if has_header {
             lines.push(gutter(heading, message, true, view, config, gutter_width));
@@ -195,14 +225,13 @@ pub(super) fn layout(area: Rect, view: &ViewModel, config: &Config) -> Timeline 
         });
         let quote = quote_start..quote_start + quote_count;
         let (body, preview) = message_body::rows(message, view, config, width);
-        let audio =
-            if crate::message_actions::can_play(message, chrono::Utc::now().timestamp_millis())
-                && !matches!(&message.body, MessageBody::Media(a) if a.is_gif())
-            {
-                quote.end..lines.len() + body.len()
-            } else {
-                0..0
-            };
+        let audio = if crate::message_actions::can_play(message, now_ms)
+            && !matches!(&message.body, MessageBody::Media(a) if a.is_gif())
+        {
+            quote.end..lines.len() + body.len()
+        } else {
+            0..0
+        };
         let preview = preview.map(|offset| lines.len() + offset);
         for line in body {
             lines.push(gutter(
@@ -457,6 +486,18 @@ pub(super) fn render(
         .map(|row| layout.lines[*row].clone())
         .collect::<Vec<_>>();
     if let Some(index) = layout.sticky {
+        let names: HashMap<&str, &str> = view
+            .chats
+            .iter()
+            .map(|c| (c.chat.0.as_str(), c.name.as_str()))
+            .collect();
+        let mut receipt_counts: HashMap<&MessageKey, (usize, usize)> =
+            HashMap::with_capacity(view.receipts.len());
+        for receipt in &view.receipts {
+            let entry = receipt_counts.entry(&receipt.key).or_insert((0, 0));
+            entry.0 += 1;
+            entry.1 += usize::from(receipt.state == ReceiptState::Read);
+        }
         let context = gutter(
             header(
                 &view.messages[index],
@@ -465,6 +506,8 @@ pub(super) fn render(
                 layout.area.width.saturating_sub(layout.gutter) as usize,
                 view,
                 config,
+                &names,
+                &receipt_counts,
             ),
             &view.messages[index],
             true,
@@ -493,6 +536,11 @@ pub(super) fn render(
     if !graphics {
         return;
     }
+    let avatar_names: HashMap<&str, &str> = view
+        .chats
+        .iter()
+        .map(|c| (c.chat.0.as_str(), c.name.as_str()))
+        .collect();
     for run in &layout.runs {
         let message = &view.messages[run.index];
         if let Some(start) = run.preview
@@ -524,7 +572,7 @@ pub(super) fn render(
                     account: message.key.account.clone(),
                     jid,
                 },
-                &who(message, view),
+                &who(message, &avatar_names),
                 Rect::new(rect.x + 2, rect.y, 4, rect.height),
                 skip,
             );
