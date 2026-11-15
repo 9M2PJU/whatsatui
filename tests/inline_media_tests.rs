@@ -95,9 +95,15 @@ async fn previews_verify_cache_and_reject_deleted_messages() {
     let (_stop, cancel) = tokio::sync::watch::channel(false);
     // With auto-fetch off and nothing cached, no network happens.
     assert!(
-        preview::load(record.clone(), store.clone(), &source, cancel.clone(), false)
-            .await
-            .is_err()
+        preview::load(
+            record.clone(),
+            store.clone(),
+            &source,
+            cancel.clone(),
+            false
+        )
+        .await
+        .is_err()
     );
     assert_eq!(source.0.load(Ordering::SeqCst), 0);
     for _ in 0..2 {
@@ -110,9 +116,15 @@ async fn previews_verify_cache_and_reject_deleted_messages() {
     assert_eq!(source.0.load(Ordering::SeqCst), 1);
     // An explicitly downloaded copy still renders when auto-fetch is off.
     assert!(
-        preview::load(record.clone(), store.clone(), &source, cancel.clone(), false)
-            .await
-            .is_ok()
+        preview::load(
+            record.clone(),
+            store.clone(),
+            &source,
+            cancel.clone(),
+            false
+        )
+        .await
+        .is_ok()
     );
     assert_eq!(source.0.load(Ordering::SeqCst), 1);
     store
