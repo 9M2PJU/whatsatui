@@ -191,7 +191,6 @@ pub fn guess_mime(filename: &str) -> String {
         "wav" => "audio/wav",
         "flac" => "audio/flac",
         "aac" => "audio/aac",
-        "mp4" => "video/mp4",
         "doc" => "application/msword",
         "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xls" => "application/vnd.ms-excel",
