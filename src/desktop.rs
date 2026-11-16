@@ -65,6 +65,9 @@ pub async fn execute(
                 Ok("Copied link".into())
             }
         }
+        DesktopAction::OpenLocal => {
+            unreachable!("OpenLocal is handled before text lookup")
+        }
     }
 }
 
