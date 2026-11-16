@@ -57,11 +57,10 @@ impl Draft {
     }
 
     fn merge_content(&mut self, other: RecoveredDraft, edited: bool) {
-        let other_has_content =
-            !other.text.is_empty()
-                || other.attachment.is_some()
-                || other.document.is_some()
-                || other.reply.is_some();
+        let other_has_content = !other.text.is_empty()
+            || other.attachment.is_some()
+            || other.document.is_some()
+            || other.reply.is_some();
         if let Some(index) = self.recovered.iter().position(|d| d.origin == other.origin) {
             if edited {
                 if other_has_content {

@@ -61,10 +61,7 @@ impl App {
                     }
                     return;
                 }
-                return self.attach_file_path(
-                    entry.path.to_string_lossy().into_owned(),
-                    effects,
-                );
+                return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
             }
         }
         let path = clean_attachment_path(&editor_text);
@@ -73,9 +70,7 @@ impl App {
         }
         // Typing an existing directory navigates instead of erroring.
         let expanded = if let Some(rest) = path.strip_prefix("~/") {
-            std::env::var_os("HOME").map(|h| {
-                std::path::PathBuf::from(h).join(rest)
-            })
+            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(rest))
         } else {
             Some(std::path::PathBuf::from(&path))
         };
@@ -200,7 +195,8 @@ impl App {
     }
 }
 
-pub(crate) fn clean_attachment_path(raw: &str) -> String {    let mut path = raw.trim().to_owned();
+pub(crate) fn clean_attachment_path(raw: &str) -> String {
+    let mut path = raw.trim().to_owned();
     // Terminal drag-and-drop typically bracket-pastes the path, often quoted.
     if path.len() >= 2
         && ((path.starts_with('\'') && path.ends_with('\''))

@@ -175,17 +175,11 @@ pub fn guess_mime(filename: &str) -> String {
         "ogg" | "oga" => "audio/ogg",
         "mp4" => "video/mp4",
         "doc" => "application/msword",
-        "docx" => {
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        }
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xls" => "application/vnd.ms-excel",
-        "xlsx" => {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        }
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "ppt" => "application/vnd.ms-powerpoint",
-        "pptx" => {
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        }
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "odt" => "application/vnd.oasis.opendocument.text",
         "ods" => "application/vnd.oasis.opendocument.spreadsheet",
         _ => "application/octet-stream",
@@ -198,8 +192,7 @@ pub fn import_document(source: &Path, data_dir: &Path) -> Result<LocalDocument, 
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "file".into());
-    let metadata =
-        std::fs::metadata(source).map_err(|_| "Attached file is unavailable")?;
+    let metadata = std::fs::metadata(source).map_err(|_| "Attached file is unavailable")?;
     if !metadata.is_file() {
         return Err("Choose a regular file up to 50 MiB".into());
     }
@@ -250,9 +243,11 @@ fn persist_document(
     let mut count = 0usize;
     for entry in std::fs::read_dir(&root).map_err(|_| "Cannot read attached file folder")? {
         let entry = entry.map_err(|_| "Cannot read attached file folder")?;
-        if entry.path().extension().is_some_and(|e| {
-            e == "jpg" || e == "webp" || e == "bin"
-        }) {
+        if entry
+            .path()
+            .extension()
+            .is_some_and(|e| e == "jpg" || e == "webp" || e == "bin")
+        {
             count += 1;
             used += entry
                 .metadata()
@@ -294,9 +289,11 @@ fn persist(local: LocalImage, bytes: &[u8], data_dir: &Path) -> Result<LocalImag
     let mut count = 0usize;
     for entry in std::fs::read_dir(&root).map_err(|_| "Cannot read attached image folder")? {
         let entry = entry.map_err(|_| "Cannot read attached image folder")?;
-        if entry.path().extension().is_some_and(|e| {
-            e == "jpg" || e == "webp" || e == "bin"
-        }) {
+        if entry
+            .path()
+            .extension()
+            .is_some_and(|e| e == "jpg" || e == "webp" || e == "bin")
+        {
             count += 1;
             used += entry
                 .metadata()

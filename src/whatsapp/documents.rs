@@ -51,10 +51,8 @@ async fn transmit(
             return SendState::Failed;
         };
         let expected = local.clone();
-        let prepared = tokio::task::spawn_blocking(move || {
-            outgoing::read_document(&local, &data_dir)
-        })
-        .await;
+        let prepared =
+            tokio::task::spawn_blocking(move || outgoing::read_document(&local, &data_dir)).await;
         let Ok(Ok(bytes)) = prepared else {
             return SendState::Failed;
         };

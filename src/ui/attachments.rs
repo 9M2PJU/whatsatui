@@ -1,7 +1,5 @@
 use super::*;
-use crate::app::update::attachments::{
-    browser_listed, browser_visible, format_entry_size,
-};
+use crate::app::update::attachments::{browser_listed, browser_visible, format_entry_size};
 pub(super) fn dialog(
     frame: &mut Frame,
     area: Rect,
@@ -20,15 +18,13 @@ pub(super) fn dialog(
     };
     let show_saved = !browser_visible(editor.text(), !view.draft.recovered.is_empty())
         && !view.draft.recovered.is_empty();
-    let (browser_base, browser_entries) = if browser_visible(
-        editor.text(),
-        !view.draft.recovered.is_empty(),
-    ) {
-        let (base, entries) = browser_listed(editor.text());
-        (Some(base), entries)
-    } else {
-        (None, Vec::new())
-    };
+    let (browser_base, browser_entries) =
+        if browser_visible(editor.text(), !view.draft.recovered.is_empty()) {
+            let (base, entries) = browser_listed(editor.text());
+            (Some(base), entries)
+        } else {
+            (None, Vec::new())
+        };
     let browser_count = browser_entries.len().min(8) as u16;
     let saved_count = if show_saved {
         view.draft.recovered.len().min(5) as u16
@@ -71,8 +67,11 @@ pub(super) fn dialog(
     let mut status_y: u16;
     if let Some(base) = &browser_base {
         frame.render_widget(
-            Paragraph::new(format!("Files in {} · .. goes up", base.display()))
-                .style(style(config, view, ThemeRole::Inactive)),
+            Paragraph::new(format!("Files in {} · .. goes up", base.display())).style(style(
+                config,
+                view,
+                ThemeRole::Inactive,
+            )),
             Rect::new(inner.x, inner.y + 4, inner.width, 1),
         );
         let start = view
@@ -81,7 +80,11 @@ pub(super) fn dialog(
             .copied()
             .unwrap_or(0)
             .min(*selected)
-            .max(selected.saturating_add(1).saturating_sub(browser_count.max(1) as usize));
+            .max(
+                selected
+                    .saturating_add(1)
+                    .saturating_sub(browser_count.max(1) as usize),
+            );
         let rows = browser_entries
             .iter()
             .enumerate()

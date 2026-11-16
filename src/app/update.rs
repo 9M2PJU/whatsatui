@@ -1143,8 +1143,7 @@ impl App {
                     let cleaned = attachments::clean_attachment_path(&text);
                     if !cleaned.is_empty() {
                         let expanded = if let Some(rest) = cleaned.strip_prefix("~/") {
-                            std::env::var_os("HOME")
-                                .map(|h| std::path::PathBuf::from(h).join(rest))
+                            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(rest))
                         } else if let Ok(url) = reqwest::Url::parse(&cleaned)
                             && let Some(file) = url.to_file_path().ok()
                         {
@@ -1152,9 +1151,10 @@ impl App {
                         } else {
                             Some(std::path::PathBuf::from(&cleaned))
                         };
-                        if expanded.as_ref().is_some_and(|p| {
-                            std::fs::metadata(p).is_ok_and(|m| m.is_file())
-                        }) {
+                        if expanded
+                            .as_ref()
+                            .is_some_and(|p| std::fs::metadata(p).is_ok_and(|m| m.is_file()))
+                        {
                             self.view.overlay = Some(Overlay::Attachment {
                                 editor: Editor::new(cleaned),
                                 selected: 0,
