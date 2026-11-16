@@ -395,19 +395,32 @@ async fn execute_with_media(
             };
             let result = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
-                let path = if let Some(rest) = path.strip_prefix("~/") {
-                    std::path::PathBuf::from(
-                        std::env::var_os("HOME").ok_or("Home directory is unavailable")?,
-                    )
-                    .join(rest)
-                } else {
-                    std::path::PathBuf::from(path)
-                };
+                let path = expand_attachment_path(&path)?;
                 crate::media::outgoing::import(&path, &root)
             })
             .await
             .unwrap_or_else(|_| Err("Image preparation failed".into()));
             return Some(Input::ImageImported {
+                request,
+                account,
+                chat,
+                result,
+            });
+        }
+        Effect::ImportDocument {
+            request,
+            account,
+            chat,
+            path,
+        } => {
+            let root = store.data_dir().to_owned();
+            let result = tokio::task::spawn_blocking(move || {
+                let path = expand_attachment_path(&path)?;
+                crate::media::outgoing::import_document(&path, &root)
+            })
+            .await
+            .unwrap_or_else(|_| Err("File preparation failed".into()));
+            return Some(Input::DocumentImported {
                 request,
                 account,
                 chat,
@@ -874,6 +887,31 @@ fn uses_commands(effect: &Effect) -> bool {
             | Effect::Transmit(_)
             | Effect::MarkRead { .. }
     )
+}
+
+fn expand_attachment_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let mut path = path.trim().to_owned();
+    if path.len() >= 2
+        && ((path.starts_with('\'') && path.ends_with('\''))
+            || (path.starts_with('"') && path.ends_with('"')))
+    {
+        path = path[1..path.len() - 1].trim().to_owned();
+    }
+    if path.contains("\\ ") {
+        path = path.replace("\\ ", " ");
+    }
+    if let Some(rest) = path.strip_prefix("~/") {
+        return Ok(std::path::PathBuf::from(
+            std::env::var_os("HOME").ok_or("Home directory is unavailable")?,
+        )
+        .join(rest));
+    }
+    if let Ok(url) = reqwest::Url::parse(&path)
+        && let Some(file) = url.to_file_path().ok()
+    {
+        return Ok(file);
+    }
+    Ok(std::path::PathBuf::from(path))
 }
 
 async fn clipboard_paste(

@@ -2,7 +2,7 @@ use super::{editor::*, input::Input, model::*, view_model::*};
 use crate::{config::Config, whatsapp::BackendEvent};
 use tokio::time::Instant;
 mod actions;
-mod attachments;
+pub(crate) mod attachments;
 mod audio;
 mod interactions;
 mod mouse;
@@ -46,6 +46,12 @@ pub enum Effect {
         sticker: bool,
     },
     ImportImage {
+        request: RequestId,
+        account: AccountId,
+        chat: ChatId,
+        path: String,
+    },
+    ImportDocument {
         request: RequestId,
         account: AccountId,
         chat: ChatId,
@@ -571,15 +577,23 @@ impl App {
             return;
         }
         if let Some(Overlay::Attachment {
+            editor,
             selected,
             importing,
             ..
         }) = &mut self.view.overlay
         {
             if importing.is_none() {
+                let editor_text = editor.text().to_owned();
+                let has_recovered = !self.view.draft.recovered.is_empty();
+                let len = if attachments::browser_visible(&editor_text, has_recovered) {
+                    attachments::browser_listed(&editor_text).1.len()
+                } else {
+                    self.view.draft.recovered.len()
+                };
                 *selected = selected
                     .saturating_add_signed(delta)
-                    .min(self.view.draft.recovered.len().saturating_sub(1));
+                    .min(len.saturating_sub(1));
             }
             return;
         }
@@ -786,7 +800,14 @@ impl App {
             A::AttachImage => self.open_attachment(),
             A::RemoveAttachment => {
                 self.clipboard_request = None;
+                let mut changed = false;
                 if self.view.draft.attachment.take().is_some() {
+                    changed = true;
+                }
+                if self.view.draft.document.take().is_some() {
+                    changed = true;
+                }
+                if changed {
                     self.remember();
                 }
             }
@@ -1000,9 +1021,10 @@ impl App {
                     return;
                 }
                 if let Some(Overlay::Resend { message }) = self.view.overlay.take() {
-                    let (text, attachment) = match message.body {
-                        MessageBody::Text(text) => (text, None),
-                        MessageBody::LocalImage { image, caption } => (caption, Some(image)),
+                    let (text, attachment, document) = match message.body {
+                        MessageBody::Text(text) => (text, None, None),
+                        MessageBody::LocalImage { image, caption } => (caption, Some(image), None),
+                        MessageBody::LocalDocument { file, caption } => (caption, None, Some(file)),
                         _ => {
                             self.view.notice = Some("This message cannot be resent".into());
                             return;
@@ -1013,6 +1035,7 @@ impl App {
                         Draft {
                             text,
                             attachment,
+                            document,
                             reply: message.quote,
                             revision: 0,
                             ..Default::default()
@@ -1031,7 +1054,10 @@ impl App {
                     self.view.notice = Some("Wait for the clipboard image before sending".into());
                     return;
                 }
-                if self.view.draft.text.trim().is_empty() && self.view.draft.attachment.is_none() {
+                if self.view.draft.text.trim().is_empty()
+                    && self.view.draft.attachment.is_none()
+                    && self.view.draft.document.is_none()
+                {
                     return;
                 }
                 if let Some(chat) = self.view.chat.clone() {
@@ -1138,7 +1164,42 @@ impl App {
                 self.foreground = Some(true);
                 return;
             }
-            Event::Paste(text) => Some(EditAction::Insert(text)),
+            Event::Paste(text) => {
+                // Terminal drag-and-drop bracket-pastes a quoted path. Attach the
+                // file directly instead of inserting its path as message text.
+                if self.view.overlay.is_none()
+                    && self.view.focus == Focus::Composer
+                    && self.view.chat.is_some()
+                    && !text.contains('\n')
+                {
+                    let cleaned = attachments::clean_attachment_path(&text);
+                    if !cleaned.is_empty() {
+                        let expanded = if let Some(rest) = cleaned.strip_prefix("~/") {
+                            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(rest))
+                        } else if let Ok(url) = reqwest::Url::parse(&cleaned)
+                            && let Some(file) = url.to_file_path().ok()
+                        {
+                            Some(file)
+                        } else {
+                            Some(std::path::PathBuf::from(&cleaned))
+                        };
+                        if expanded
+                            .as_ref()
+                            .is_some_and(|p| std::fs::metadata(p).is_ok_and(|m| m.is_file()))
+                        {
+                            self.view.overlay = Some(Overlay::Attachment {
+                                editor: Editor::new(cleaned),
+                                selected: 0,
+                                importing: None,
+                                error: None,
+                            });
+                            self.import_attachment(effects);
+                            return;
+                        }
+                    }
+                }
+                Some(EditAction::Insert(text))
+            }
             Event::Key(key) => {
                 if key.kind == KeyEventKind::Release {
                     return;
@@ -1199,13 +1260,16 @@ impl App {
                 }
             } else if let Some(Overlay::Attachment {
                 editor,
+                selected,
                 importing,
                 error,
                 ..
             }) = &mut self.view.overlay
             {
                 if importing.is_none() {
-                    super::search::edit_query(editor, edit);
+                    if super::search::edit_query(editor, edit) {
+                        *selected = 0;
+                    }
                     *error = None;
                 }
             } else if let Some(Overlay::MessageSearch(search)) = &mut self.view.overlay {
@@ -1662,6 +1726,7 @@ impl App {
                             }
                             self.view.draft.reply = local.data.reply.clone();
                             self.view.draft.attachment = local.data.attachment.clone();
+                            self.view.draft.document = local.data.document.clone();
                             self.view.draft.origin = local.data.origin.clone();
                             self.view.draft.recovered = local.data.recovered.clone();
                             self.view.draft.revision = local.data.revision;
@@ -1928,6 +1993,12 @@ impl App {
                 chat,
                 result,
             } => self.image_imported(request, account, chat, result),
+            Input::DocumentImported {
+                request,
+                account,
+                chat,
+                result,
+            } => self.document_imported(request, account, chat, result),
             Input::DesktopAction {
                 request,
                 account,

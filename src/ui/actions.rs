@@ -23,6 +23,20 @@ pub(super) fn menu(
         .map(str::to_owned)
         .unwrap_or_else(|| match &menu.message.body {
             MessageBody::Media(attachment) => attachment.label(),
+            MessageBody::LocalImage { image, caption } => {
+                if caption.is_empty() {
+                    format!("[{}] {}", image.label(), image.filename)
+                } else {
+                    caption.clone()
+                }
+            }
+            MessageBody::LocalDocument { file, caption } => {
+                if caption.is_empty() {
+                    format!("[file] {}", file.filename)
+                } else {
+                    caption.clone()
+                }
+            }
             _ => String::new(),
         });
     frame.render_widget(

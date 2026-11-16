@@ -105,17 +105,35 @@ impl App {
                 if self.view.timeline_anchor.is_none() {
                     self.view.timeline_anchor = self.view.messages.last().map(|m| m.key.clone());
                 }
-                self.view.selected_message = Some(key);
+                self.view.selected_message = Some(key.clone());
                 self.reading_position();
                 if button == MouseButton::Right || double {
                     // Double-clicking a photo or file opens it in the
                     // viewer; everything else shows the message actions menu.
+                    // Received files download when needed; your own attached
+                    // photos and files open straight from their snapshot.
                     if double
-                        && self
+                        && self.selected().is_some_and(|m| {
+                            crate::message_actions::viewable_file(m)
+                                || matches!(
+                                    m.body,
+                                    MessageBody::LocalImage { .. }
+                                        | MessageBody::LocalDocument { .. }
+                                )
+                        })
+                    {
+                        if self
                             .selected()
                             .is_some_and(crate::message_actions::viewable_file)
-                    {
-                        self.view_selected_image(effects);
+                        {
+                            self.view_selected_image(effects);
+                        } else if let Some(message) = self.selected().cloned() {
+                            self.start_desktop_action(
+                                message,
+                                crate::message_actions::DesktopAction::OpenLocal,
+                                effects,
+                            );
+                        }
                     } else {
                         self.action(ActionId::MessageActions, effects);
                     }
