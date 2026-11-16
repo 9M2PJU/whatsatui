@@ -585,12 +585,14 @@ impl App {
         {
             if importing.is_none() {
                 let editor_text = editor.text().to_owned();
-                let has_recovered = !self.view.draft.recovered.is_empty();
-                let len = if attachments::browser_visible(&editor_text, has_recovered) {
-                    attachments::browser_listed(&editor_text).1.len()
-                } else {
-                    self.view.draft.recovered.len()
-                };
+                let show_drafts =
+                    editor_text.trim().is_empty() && !self.view.draft.recovered.is_empty();
+                let len = attachments::browser_listed(&editor_text).1.len()
+                    + if show_drafts {
+                        self.view.draft.recovered.len()
+                    } else {
+                        0
+                    };
                 *selected = selected
                     .saturating_add_signed(delta)
                     .min(len.saturating_sub(1));

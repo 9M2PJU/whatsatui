@@ -25,23 +25,15 @@ impl App {
         };
         let editor_text = editor.text().to_owned();
         let selected = *selected;
-        let has_recovered = !self.view.draft.recovered.is_empty();
-        // Empty input: with saved drafts it restores one, otherwise the
-        // explorer selection navigates (directory) or attaches (file).
+        // One selection spans files first, then saved drafts. Files are always
+        // listed, so picking never requires typing a path.
+        let show_drafts = editor_text.trim().is_empty() && !self.view.draft.recovered.is_empty();
+        // Empty input uses the shared selection: a file row navigates
+        // (directory) or attaches (file), a draft row restores that draft.
         if editor_text.trim().is_empty() {
-            if !browser_visible(&editor_text, has_recovered) {
-                if let Some(chat) = &self.view.chat
-                    && self.view.draft.restore(selected, chat)
-                {
-                    self.editor = Editor::new(self.view.draft.text.clone());
-                    self.view.overlay = None;
-                    self.view.notice = Some("Saved draft restored; review before sending".into());
-                    self.remember();
-                }
-                return;
-            }
             let (_, entries) = browser_listed(&editor_text);
-            if let Some(entry) = entries.get(selected) {
+            if selected < entries.len() {
+                let entry = entries[selected].clone();
                 if entry.is_dir {
                     if let Some(Overlay::Attachment {
                         editor,
@@ -61,6 +53,15 @@ impl App {
                     return;
                 }
                 return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
+            }
+            if show_drafts
+                && let Some(chat) = &self.view.chat
+                && self.view.draft.restore(selected - entries.len(), chat)
+            {
+                self.editor = Editor::new(self.view.draft.text.clone());
+                self.view.overlay = None;
+                self.view.notice = Some("Saved draft restored; review before sending".into());
+                self.remember();
             }
             return;
         }
@@ -325,11 +326,8 @@ pub(crate) fn browser_entries(base: &std::path::Path) -> Vec<ExplorerEntry> {
     entries
 }
 
-/// File list for the attach dialog. `None` means show saved drafts instead.
-pub(crate) fn browser_visible(editor_text: &str, has_recovered: bool) -> bool {
-    !(editor_text.trim().is_empty() && has_recovered)
-}
-
+/// File list for the attach dialog. Saved drafts are shown as well when the
+/// input is empty; both share one selection index (files first).
 pub(crate) fn browser_listed(editor_text: &str) -> (std::path::PathBuf, Vec<ExplorerEntry>) {
     let (base, prefix) = browser_base(editor_text);
     let mut entries = browser_entries(&base);
