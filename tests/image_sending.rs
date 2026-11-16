@@ -710,9 +710,10 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
     press(&mut app, "enter");
     press(&mut app, "ctrl-o");
     app.update(
-        Input::Terminal(crossterm::event::Event::Paste(
-            format!("{}/", dir.path().to_string_lossy()),
-        )),
+        Input::Terminal(crossterm::event::Event::Paste(format!(
+            "{}/",
+            dir.path().to_string_lossy()
+        ))),
         tokio::time::Instant::now(),
     );
     // Move selection from `..` (0) to `picture.webp` (1)
@@ -728,9 +729,10 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
     press(&mut app, "enter");
     press(&mut app, "ctrl-o");
     app.update(
-        Input::Terminal(crossterm::event::Event::Paste(
-            format!("{}/", dir.path().to_string_lossy()),
-        )),
+        Input::Terminal(crossterm::event::Event::Paste(format!(
+            "{}/",
+            dir.path().to_string_lossy()
+        ))),
         tokio::time::Instant::now(),
     );
 
@@ -752,7 +754,9 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
     let buffer = terminal.backend().buffer().clone();
     let mut pt = None;
     for y in 0..buffer.area.height {
-        let line: String = (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect();
+        let line: String = (0..buffer.area.width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect();
         if line.contains("picture.webp") {
             pt = Some((30, y));
             break;
@@ -762,12 +766,14 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
 
     // Single click selects the row
     app.update(
-        Input::Terminal(crossterm::event::Event::Mouse(crossterm::event::MouseEvent {
-            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
-            column: pt.0,
-            row: pt.1,
-            modifiers: crossterm::event::KeyModifiers::NONE,
-        })),
+        Input::Terminal(crossterm::event::Event::Mouse(
+            crossterm::event::MouseEvent {
+                kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                column: pt.0,
+                row: pt.1,
+                modifiers: crossterm::event::KeyModifiers::NONE,
+            },
+        )),
         tokio::time::Instant::now(),
     );
     // Pressing Enter must attach the selected file
@@ -782,9 +788,10 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
     press(&mut app, "enter");
     press(&mut app, "ctrl-o");
     app.update(
-        Input::Terminal(crossterm::event::Event::Paste(
-            format!("{}/", dir.path().to_string_lossy()),
-        )),
+        Input::Terminal(crossterm::event::Event::Paste(format!(
+            "{}/",
+            dir.path().to_string_lossy()
+        ))),
         tokio::time::Instant::now(),
     );
     let mut map = None;
@@ -799,16 +806,21 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
             ));
         })
         .unwrap();
-    app.update(Input::Rendered(map.clone().unwrap()), tokio::time::Instant::now());
+    app.update(
+        Input::Rendered(map.clone().unwrap()),
+        tokio::time::Instant::now(),
+    );
 
     let t0 = tokio::time::Instant::now();
     app.update(
-        Input::Terminal(crossterm::event::Event::Mouse(crossterm::event::MouseEvent {
-            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
-            column: pt.0,
-            row: pt.1,
-            modifiers: crossterm::event::KeyModifiers::NONE,
-        })),
+        Input::Terminal(crossterm::event::Event::Mouse(
+            crossterm::event::MouseEvent {
+                kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                column: pt.0,
+                row: pt.1,
+                modifiers: crossterm::event::KeyModifiers::NONE,
+            },
+        )),
         t0,
     );
     terminal
@@ -822,14 +834,19 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
             ));
         })
         .unwrap();
-    app.update(Input::Rendered(map.unwrap()), t0 + std::time::Duration::from_millis(10));
+    app.update(
+        Input::Rendered(map.unwrap()),
+        t0 + std::time::Duration::from_millis(10),
+    );
     let effects = app.update(
-        Input::Terminal(crossterm::event::Event::Mouse(crossterm::event::MouseEvent {
-            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
-            column: pt.0,
-            row: pt.1,
-            modifiers: crossterm::event::KeyModifiers::NONE,
-        })),
+        Input::Terminal(crossterm::event::Event::Mouse(
+            crossterm::event::MouseEvent {
+                kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+                column: pt.0,
+                row: pt.1,
+                modifiers: crossterm::event::KeyModifiers::NONE,
+            },
+        )),
         t0 + std::time::Duration::from_millis(50),
     );
     assert!(effects.iter().any(|effect| matches!(
@@ -842,9 +859,10 @@ fn enter_attaches_selected_file_via_arrow_or_mouse_click() {
     press(&mut app, "enter");
     press(&mut app, "ctrl-o");
     app.update(
-        Input::Terminal(crossterm::event::Event::Paste(
-            format!("{}/", dir.path().to_string_lossy()),
-        )),
+        Input::Terminal(crossterm::event::Event::Paste(format!(
+            "{}/",
+            dir.path().to_string_lossy()
+        ))),
         tokio::time::Instant::now(),
     );
     // Type "pic" filter
