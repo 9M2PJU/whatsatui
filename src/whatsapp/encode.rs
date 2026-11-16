@@ -234,6 +234,60 @@ pub fn encode_audio(
     };
     Ok(encoded)
 }
+/// Video files chosen as playable go out as video messages, which keep
+/// their caption. Dimensions and duration come from a best-effort probe
+/// and are simply omitted when unreadable.
+pub fn encode_video(
+    outbound: &OutboundText,
+    uploaded: UploadedDocument,
+    width: Option<u32>,
+    height: Option<u32>,
+    seconds: Option<u32>,
+) -> Result<EncodedText, BackendError> {
+    let file = outbound
+        .draft
+        .document
+        .as_ref()
+        .ok_or(BackendError::InvalidIdentity)?;
+    if outbound.draft.attachment.is_some() || !file.is_video() {
+        return Err(BackendError::InvalidIdentity);
+    }
+    if file.filename.len() > 255 || outbound.draft.text.len() > 4096 {
+        return Err(BackendError::InvalidIdentity);
+    }
+    let mut encoded = encode_base(outbound)?;
+    let context_info = encoded
+        .message
+        .extended_text_message
+        .as_option_mut()
+        .and_then(|m| m.context_info.take());
+    let a = uploaded.attachment;
+    let caption = if outbound.draft.text.is_empty() {
+        None
+    } else {
+        Some(outbound.draft.text.clone())
+    };
+    encoded.message = wa::Message {
+        video_message: MessageField::some(wa::message::VideoMessage {
+            url: Some(uploaded.url),
+            direct_path: Some(a.direct_path),
+            mimetype: Some(file.mime.clone()),
+            file_length: Some(a.size),
+            file_sha256: Some(a.sha256.to_vec()),
+            media_key: Some(a.media_key.to_vec()),
+            file_enc_sha256: Some(a.encrypted_sha256.to_vec()),
+            media_key_timestamp: Some(uploaded.media_key_timestamp),
+            width,
+            height,
+            seconds,
+            caption,
+            context_info: context_info.into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    Ok(encoded)
+}
 pub fn encode_sticker(
     outbound: &OutboundText,
     uploaded: UploadedImage,

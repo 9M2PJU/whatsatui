@@ -378,7 +378,9 @@ impl App {
         match &self.view.overlay {
             Some(Overlay::Stickers(_)) => Context::Stickers,
             Some(Overlay::Emoji { .. }) => Context::Emoji,
-            Some(Overlay::Attachment { .. }) => Context::Attachment,
+            Some(Overlay::Attachment { .. }) | Some(Overlay::SendChoice { .. }) => {
+                Context::Attachment
+            }
             Some(Overlay::MessageActions(_)) => Context::MessageActions,
             Some(Overlay::Reactions(_)) => Context::Reactions,
             Some(Overlay::MessageLinks(_)) => Context::MessageLinks,
@@ -574,6 +576,10 @@ impl App {
             *selected = selected
                 .saturating_add_signed(delta)
                 .min(super::emoji::search(editor.text()).len().saturating_sub(1));
+            return;
+        }
+        if let Some(Overlay::SendChoice { selected, .. }) = &mut self.view.overlay {
+            *selected = selected.saturating_add_signed(delta).min(1);
             return;
         }
         if let Some(Overlay::Attachment {
@@ -833,6 +839,10 @@ impl App {
                 self.focus(next, effects);
             }
             A::Back => {
+                if matches!(self.view.overlay, Some(Overlay::SendChoice { .. })) {
+                    self.choose_send_as(false);
+                    return;
+                }
                 if self.view.overlay.is_none() && self.view.editing.is_some() {
                     if self
                         .view
@@ -951,6 +961,10 @@ impl App {
                     }
                     return;
                 }
+                if matches!(self.view.overlay, Some(Overlay::SendChoice { .. })) {
+                    self.choose_send_as(self.send_choice_selected() == 0);
+                    return;
+                }
                 if matches!(self.view.overlay, Some(Overlay::Attachment { .. })) {
                     self.import_attachment(effects);
                     return;
@@ -1032,12 +1046,17 @@ impl App {
                             return;
                         }
                     };
+                    // A music file resent without a caption goes back out as
+                    // playable audio, matching the original send choice.
+                    let document_as_media =
+                        document.as_ref().is_some_and(|f| f.is_audio()) && text.trim().is_empty();
                     self.prepare(
                         message.key.chat,
                         Draft {
                             text,
                             attachment,
                             document,
+                            document_as_media,
                             reply: message.quote,
                             revision: 0,
                             ..Default::default()

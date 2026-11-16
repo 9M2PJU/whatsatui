@@ -19,6 +19,7 @@ impl Draft {
             text: self.text.clone(),
             attachment: self.attachment.clone(),
             document: self.document.clone(),
+            document_as_media: self.document_as_media,
             reply: self.reply.clone(),
         }
     }
@@ -28,6 +29,7 @@ impl Draft {
         self.text = draft.text;
         self.attachment = draft.attachment;
         self.document = draft.document;
+        self.document_as_media = draft.document_as_media;
         self.reply = draft.reply;
     }
 

@@ -1,5 +1,9 @@
 use super::*;
-use crate::app::update::attachments::{browser_listed, format_entry_size};
+use crate::{
+    app::update::attachments::{browser_listed, format_entry_size},
+    app::view_model::SendChoiceKind,
+    config::bindings::ActionId,
+};
 pub(super) fn dialog(
     frame: &mut Frame,
     area: Rect,
@@ -232,5 +236,78 @@ pub(super) fn dialog(
             inner.width,
             inner.height.saturating_sub(status_y),
         ),
+    );
+}
+pub(super) fn choice(
+    frame: &mut Frame,
+    area: Rect,
+    view: &ViewModel,
+    config: &Config,
+    hits: &mut InteractionMap,
+    kind: SendChoiceKind,
+    filename: &str,
+    selected: usize,
+) {
+    let (title, playable) = match kind {
+        SendChoiceKind::Audio => (
+            " Send music as… ".into(),
+            "Music · plays here and on the phone",
+        ),
+        SendChoiceKind::Video => (
+            " Send video as… ".into(),
+            "Video · plays here and on the phone",
+        ),
+    };
+    let rect = overlays::centered(area, 64, 8);
+    frame.render_widget(ratatui::widgets::Clear, rect);
+    let border = block(title, true, view, config);
+    let inner = border.inner(rect);
+    frame.render_widget(border, rect);
+    hits.popup(frame, rect, view, config);
+    frame.render_widget(
+        Paragraph::new(single(filename)).style(style(config, view, ThemeRole::Accent)),
+        Rect::new(inner.x, inner.y, inner.width, 1),
+    );
+    let rows = [playable, "File · plain attachment"]
+        .into_iter()
+        .enumerate()
+        .map(|(i, label)| {
+            Line::styled(
+                single(&format!(
+                    "{} {label}",
+                    if i == selected { "›" } else { " " }
+                )),
+                style(
+                    config,
+                    view,
+                    if i == selected {
+                        ThemeRole::Accent
+                    } else {
+                        ThemeRole::Inactive
+                    },
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(
+        Paragraph::new(rows),
+        Rect::new(inner.x, inner.y + 2, inner.width, 2),
+    );
+    hits.list(
+        Context::Attachment,
+        Rect::new(inner.x, inner.y + 2, inner.width, 2),
+        0,
+        [1, 1],
+        Target::Menu,
+    );
+    let open = search::key(config, Context::Attachment, ActionId::Open);
+    let back = search::key(config, Context::Attachment, ActionId::Back);
+    frame.render_widget(
+        Paragraph::new(format!("{open} send · {back} file")).style(style(
+            config,
+            view,
+            ThemeRole::Hints,
+        )),
+        Rect::new(inner.x, inner.y + 5, inner.width, 1),
     );
 }

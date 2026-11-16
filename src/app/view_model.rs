@@ -21,6 +21,11 @@ pub enum Overlay {
         importing: Option<RequestId>,
         error: Option<String>,
     },
+    SendChoice {
+        kind: SendChoiceKind,
+        filename: String,
+        selected: usize,
+    },
     MessageActions(Box<MessageMenu>),
     Reactions(Box<MessageMenu>),
     MessageLinks(Box<MessageLinks>),
@@ -37,6 +42,11 @@ pub enum Overlay {
     Resend {
         message: Box<MessageRecord>,
     },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SendChoiceKind {
+    Audio,
+    Video,
 }
 #[derive(Clone, Debug)]
 pub struct MessageMenu {

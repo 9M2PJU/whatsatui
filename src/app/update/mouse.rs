@@ -178,7 +178,8 @@ impl App {
                     Some(
                         Overlay::Search { selected, .. }
                         | Overlay::Emoji { selected, .. }
-                        | Overlay::Attachment { selected, .. },
+                        | Overlay::Attachment { selected, .. }
+                        | Overlay::SendChoice { selected, .. },
                     ) => *selected,
                     Some(Overlay::MessageSearch(search)) => search.selected,
                     Some(Overlay::MessageActions(menu)) => menu.selected,

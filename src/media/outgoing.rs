@@ -131,6 +131,11 @@ impl LocalDocument {
     pub fn is_audio(&self) -> bool {
         self.mime.starts_with("audio/")
     }
+
+    /// Clips the app can send as playable video messages.
+    pub fn is_video(&self) -> bool {
+        self.mime.starts_with("video/")
+    }
 }
 
 pub const MAX_DOCUMENT_BYTES: u64 = 50 * 1024 * 1024;
@@ -171,6 +176,10 @@ pub fn guess_mime(filename: &str) -> String {
         "txt" => "text/plain",
         "csv" => "text/csv",
         "zip" => "application/zip",
+        "mp4" => "video/mp4",
+        "mov" => "video/quicktime",
+        "3gp" => "video/3gpp",
+        "webm" => "video/webm",
         "jpg" | "jpeg" => "image/jpeg",
         "png" => "image/png",
         "gif" => "image/gif",

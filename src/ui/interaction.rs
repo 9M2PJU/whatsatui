@@ -30,7 +30,7 @@ pub fn context(view: &ViewModel) -> Context {
     match &view.overlay {
         Some(Overlay::Stickers(_)) => Context::Stickers,
         Some(Overlay::Emoji { .. }) => Context::Emoji,
-        Some(Overlay::Attachment { .. }) => Context::Attachment,
+        Some(Overlay::Attachment { .. } | Overlay::SendChoice { .. }) => Context::Attachment,
         Some(Overlay::MessageActions(_)) => Context::MessageActions,
         Some(Overlay::Reactions(_)) => Context::Reactions,
         Some(Overlay::MessageLinks(_)) => Context::MessageLinks,

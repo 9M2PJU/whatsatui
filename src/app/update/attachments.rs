@@ -191,14 +191,58 @@ impl App {
         *importing = None;
         match result {
             Ok(file) => {
+                let ask_audio = file.is_audio() && self.view.draft.text.trim().is_empty();
+                let ask_video = file.is_video();
+                let filename = file.filename.clone();
                 self.view.draft.document = Some(Box::new(file));
                 self.view.draft.attachment = None;
-                self.view.overlay = None;
-                self.view.notice = None;
+                self.view.draft.document_as_media = false;
                 self.remember();
+                if ask_audio || ask_video {
+                    // The dialog already collected the path; swap it for the
+                    // playable-or-file choice instead of closing outright.
+                    self.view.overlay = Some(Overlay::SendChoice {
+                        kind: if ask_audio {
+                            SendChoiceKind::Audio
+                        } else {
+                            SendChoiceKind::Video
+                        },
+                        filename,
+                        selected: 0,
+                    });
+                    self.view.notice = None;
+                } else {
+                    self.view.overlay = None;
+                    self.view.notice = None;
+                }
             }
             Err(reason) => *error = Some(reason),
         }
+    }
+    pub(super) fn send_choice_selected(&self) -> usize {
+        match &self.view.overlay {
+            Some(Overlay::SendChoice { selected, .. }) => *selected,
+            _ => 0,
+        }
+    }
+    /// Confirm the playable-or-file choice. Index 0 sends the playable
+    /// audio/video message; anything else stays a plain document.
+    pub(super) fn choose_send_as(&mut self, as_media: bool) {
+        let kind = match &self.view.overlay {
+            Some(Overlay::SendChoice { kind, .. }) => *kind,
+            _ => return,
+        };
+        self.view.overlay = None;
+        self.view.draft.document_as_media = as_media;
+        self.remember();
+        self.view.notice = Some(
+            match (kind, as_media) {
+                (SendChoiceKind::Audio, true) => "Will send as music — Enter to send",
+                (SendChoiceKind::Video, true) => "Will send as video — Enter to send",
+                _ => "Will send as a file",
+            }
+            .into(),
+        );
     }
 }
 
