@@ -37,8 +37,6 @@ impl App {
         let expanded = expand_base(&path);
         let typed_is_dir =
             !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_dir());
-        let typed_is_file =
-            !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_file());
         // Empty input lists the working directory. A directory path means the
         // list is already showing that folder, so Enter acts on the
         // highlighted row instead of reopening the same folder.
@@ -70,17 +68,6 @@ impl App {
                 }
             }
             return;
-        }
-        if typed_is_file {
-            return self.attach_file_path(path, effects);
-        }
-        // A partial path filters the list; Enter picks the highlighted match.
-        let (_, entries) = browser_listed(&editor_text);
-        if let Some(entry) = entries.get(selected.saturating_sub(dcount)) {
-            if entry.is_dir {
-                return self.browse_into(entry.path.to_string_lossy().into_owned());
-            }
-            return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
         }
         self.attach_file_path(path, effects);
     }
