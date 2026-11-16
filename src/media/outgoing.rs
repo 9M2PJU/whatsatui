@@ -126,6 +126,11 @@ impl LocalDocument {
     pub fn label(&self) -> &'static str {
         "file"
     }
+
+    /// Music and other sound files go out as playable audio messages.
+    pub fn is_audio(&self) -> bool {
+        self.mime.starts_with("audio/")
+    }
 }
 
 pub const MAX_DOCUMENT_BYTES: u64 = 50 * 1024 * 1024;
@@ -173,6 +178,10 @@ pub fn guess_mime(filename: &str) -> String {
         "mp3" => "audio/mpeg",
         "m4a" => "audio/mp4",
         "ogg" | "oga" => "audio/ogg",
+        "opus" => "audio/opus",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "aac" => "audio/aac",
         "mp4" => "video/mp4",
         "doc" => "application/msword",
         "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

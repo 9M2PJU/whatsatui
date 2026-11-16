@@ -6,7 +6,7 @@ use whatsapp_rust::{Client, prelude::SendError};
 #[async_trait::async_trait]
 trait Transport: Sync {
     fn account(&self) -> Option<AccountId>;
-    async fn upload(&self, bytes: Vec<u8>) -> Result<UploadedDocument, ()>;
+    async fn upload(&self, bytes: Vec<u8>, audio: bool) -> Result<UploadedDocument, ()>;
     async fn send(&self, encoded: EncodedText) -> Result<(), SendError>;
 }
 struct Native<'a>(&'a Client);
@@ -15,11 +15,15 @@ impl Transport for Native<'_> {
     fn account(&self) -> Option<AccountId> {
         super::native::account(self.0)
     }
-    async fn upload(&self, bytes: Vec<u8>) -> Result<UploadedDocument, ()> {
+    async fn upload(&self, bytes: Vec<u8>, audio: bool) -> Result<UploadedDocument, ()> {
         self.0
             .upload(
                 bytes,
-                whatsapp_rust::wacore::download::MediaType::Document,
+                if audio {
+                    whatsapp_rust::wacore::download::MediaType::Audio
+                } else {
+                    whatsapp_rust::wacore::download::MediaType::Document
+                },
                 whatsapp_rust::upload::UploadOptions::default(),
             )
             .await
@@ -59,7 +63,10 @@ async fn transmit(
         if bytes.len() as u64 != expected.size {
             return SendState::Failed;
         }
-        let Ok(uploaded) = transport.upload(bytes).await else {
+        // Sound files without a caption go out as playable audio messages;
+        // anything else keeps the document form (which supports captions).
+        let as_audio = expected.is_audio() && message.draft.text.is_empty();
+        let Ok(uploaded) = transport.upload(bytes, as_audio).await else {
             return SendState::Failed;
         };
         if transport.account().as_ref() != Some(&message.key.account)
@@ -74,7 +81,11 @@ async fn transmit(
         {
             return SendState::Failed;
         }
-        let Ok(encoded) = encode::encode_document(&message, uploaded) else {
+        let Ok(encoded) = (if as_audio {
+            encode::encode_audio(&message, uploaded)
+        } else {
+            encode::encode_document(&message, uploaded)
+        }) else {
             return SendState::Failed;
         };
         sending = true;
@@ -112,7 +123,7 @@ mod tests {
                 .into(),
             )
         }
-        async fn upload(&self, bytes: Vec<u8>) -> Result<UploadedDocument, ()> {
+        async fn upload(&self, bytes: Vec<u8>, audio: bool) -> Result<UploadedDocument, ()> {
             use sha2::{Digest, Sha256};
             if self.fail {
                 return Err(());
@@ -122,7 +133,11 @@ mod tests {
                 media_key_timestamp: 7,
                 attachment: crate::media::Attachment {
                     audio: None,
-                    kind: crate::media::AttachmentKind::Document,
+                    kind: if audio {
+                        crate::media::AttachmentKind::Audio
+                    } else {
+                        crate::media::AttachmentKind::Document
+                    },
                     filename: None,
                     caption: None,
                     mime: None,
@@ -186,5 +201,90 @@ mod tests {
         );
         assert_eq!(doc.caption.as_deref(), Some("see attached"));
         assert_eq!(sent[0].options.message_id.as_deref(), Some("doc-id"));
+    }
+    #[tokio::test]
+    async fn music_without_caption_sends_playable_audio_stanza() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("song.mp3");
+        std::fs::write(&source, b"fake-mp3-bytes").unwrap();
+        let local = outgoing::import_document(&source, dir.path()).unwrap();
+        assert!(local.is_audio());
+        let message = OutboundText {
+            key: MessageKey {
+                account: "self@s.whatsapp.net".into(),
+                chat: "551100000002@s.whatsapp.net".into(),
+                sender: "self@s.whatsapp.net".into(),
+                id: "audio-id".into(),
+                from_me: true,
+            },
+            draft: Draft {
+                document: Some(Box::new(local)),
+                ..Default::default()
+            },
+            created_at_ms: 0,
+        };
+        let fake = Fake {
+            sent: Mutex::new(vec![]),
+            fail: false,
+            switched: AtomicBool::new(false),
+        };
+        assert_eq!(
+            transmit(
+                &fake,
+                message,
+                dir.path().to_owned(),
+                Duration::from_secs(2)
+            )
+            .await,
+            SendState::Sending
+        );
+        let sent = fake.sent.lock().unwrap();
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].message.document_message.as_option().is_none());
+        let audio = sent[0].message.audio_message.as_option().unwrap();
+        assert_eq!(audio.mimetype.as_deref(), Some("audio/mpeg"));
+        assert_eq!(audio.ptt, Some(false));
+        assert_eq!(audio.file_length, Some(14));
+    }
+    #[tokio::test]
+    async fn captioned_music_keeps_the_document_form() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("song.mp3");
+        std::fs::write(&source, b"fake-mp3-bytes").unwrap();
+        let local = outgoing::import_document(&source, dir.path()).unwrap();
+        let message = OutboundText {
+            key: MessageKey {
+                account: "self@s.whatsapp.net".into(),
+                chat: "551100000002@s.whatsapp.net".into(),
+                sender: "self@s.whatsapp.net".into(),
+                id: "audio-doc-id".into(),
+                from_me: true,
+            },
+            draft: Draft {
+                text: "listen".into(),
+                document: Some(Box::new(local)),
+                ..Default::default()
+            },
+            created_at_ms: 0,
+        };
+        let fake = Fake {
+            sent: Mutex::new(vec![]),
+            fail: false,
+            switched: AtomicBool::new(false),
+        };
+        assert_eq!(
+            transmit(
+                &fake,
+                message,
+                dir.path().to_owned(),
+                Duration::from_secs(2)
+            )
+            .await,
+            SendState::Sending
+        );
+        let sent = fake.sent.lock().unwrap();
+        assert!(sent[0].message.audio_message.as_option().is_none());
+        let doc = sent[0].message.document_message.as_option().unwrap();
+        assert_eq!(doc.caption.as_deref(), Some("listen"));
     }
 }
