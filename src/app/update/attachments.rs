@@ -33,74 +33,78 @@ impl App {
         } else {
             0
         };
-        // Empty input uses the shared selection: a draft row restores that
-        // draft, a file row navigates (directory) or attaches (file).
-        if editor_text.trim().is_empty() {
-            if show_drafts && selected < dcount {
-                if let Some(chat) = &self.view.chat
-                    && self.view.draft.restore(selected, chat)
-                {
-                    self.editor = Editor::new(self.view.draft.text.clone());
-                    self.view.overlay = None;
-                    self.view.notice = Some("Saved draft restored; review before sending".into());
-                    self.remember();
-                }
+        let path = clean_attachment_path(&editor_text);
+        let expanded = expand_base(&path);
+        let typed_is_dir =
+            !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_dir());
+        let typed_is_file =
+            !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_file());
+        // Empty input lists the working directory. A directory path means the
+        // list is already showing that folder, so Enter acts on the
+        // highlighted row instead of reopening the same folder.
+        if path.is_empty() || typed_is_dir {
+            if path.is_empty()
+                && show_drafts
+                && selected < dcount
+                && let Some(chat) = &self.view.chat
+                && self.view.draft.restore(selected, chat)
+            {
+                self.editor = Editor::new(self.view.draft.text.clone());
+                self.view.overlay = None;
+                self.view.notice = Some("Saved draft restored; review before sending".into());
+                self.remember();
+                return;
+            }
+            // A freshly typed folder without the trailing slash first enters
+            // it; later Enters pick from the highlighted row.
+            if typed_is_dir && !editor_text.trim_end().ends_with('/') {
+                self.browse_into(path);
                 return;
             }
             let (_, entries) = browser_listed(&editor_text);
             if let Some(entry) = entries.get(selected.saturating_sub(dcount)) {
                 if entry.is_dir {
-                    if let Some(Overlay::Attachment {
-                        editor,
-                        selected,
-                        error,
-                        ..
-                    }) = &mut self.view.overlay
-                    {
-                        let mut next = entry.path.to_string_lossy().into_owned();
-                        if !next.ends_with('/') {
-                            next.push('/');
-                        }
-                        *editor = Editor::new(next);
-                        *selected = 0;
-                        *error = None;
-                    }
-                    return;
+                    self.browse_into(entry.path.to_string_lossy().into_owned());
+                } else {
+                    self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
                 }
-                return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
             }
             return;
         }
-        let path = clean_attachment_path(&editor_text);
-        if path.is_empty() {
-            return;
+        if typed_is_file {
+            return self.attach_file_path(path, effects);
         }
-        // Typing an existing directory navigates instead of erroring.
-        let expanded = if let Some(rest) = path.strip_prefix("~/") {
-            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(rest))
-        } else {
-            Some(std::path::PathBuf::from(&path))
-        };
-        if expanded
-            .as_ref()
-            .is_some_and(|p| std::fs::metadata(p).is_ok_and(|m| m.is_dir()))
-            && let Some(Overlay::Attachment {
-                editor,
-                selected,
-                error,
-                ..
-            }) = &mut self.view.overlay
-        {
-            let mut next = path;
-            if !next.ends_with('/') {
-                next.push('/');
+        // A partial path filters the list; Enter picks the highlighted match.
+        let (_, entries) = browser_listed(&editor_text);
+        if let Some(entry) = entries.get(selected.saturating_sub(dcount)) {
+            if entry.is_dir {
+                return self.browse_into(entry.path.to_string_lossy().into_owned());
             }
-            *editor = Editor::new(next);
-            *selected = 0;
-            *error = None;
-            return;
+            return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
         }
         self.attach_file_path(path, effects);
+    }
+
+    /// Open a folder in the picker and highlight its first real entry, so the
+    /// next Enter picks a file instead of stepping back to the parent.
+    fn browse_into(&mut self, path: String) {
+        let mut next = path;
+        if !next.ends_with('/') {
+            next.push('/');
+        }
+        let (_, entries) = browser_listed(&next);
+        let first = entries.iter().position(|e| e.name != "..").unwrap_or(0);
+        if let Some(Overlay::Attachment {
+            editor,
+            selected,
+            error,
+            ..
+        }) = &mut self.view.overlay
+        {
+            *editor = Editor::new(next);
+            *selected = first;
+            *error = None;
+        }
     }
 
     fn attach_file_path(&mut self, path: String, effects: &mut Vec<Effect>) {

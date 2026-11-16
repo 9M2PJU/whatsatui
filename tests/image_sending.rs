@@ -211,6 +211,31 @@ fn attach_cancel_stale_import_and_attachment_only_send() {
     assert!(app.view().draft.attachment.is_none());
 }
 
+#[test]
+fn enter_attaches_the_highlighted_file_after_browsing_into_a_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("picture.webp");
+    std::fs::write(&source, include_bytes!("fixtures/sticker.webp")).unwrap();
+    let expected = source.to_string_lossy().into_owned();
+    let mut app = ready_app();
+    press(&mut app, "enter");
+    press(&mut app, "ctrl-o");
+    app.update(
+        Input::Terminal(crossterm::event::Event::Paste(
+            dir.path().to_string_lossy().into_owned(),
+        )),
+        tokio::time::Instant::now(),
+    );
+    // The first Enter turns the typed folder into the browse location and
+    // highlights its first file.
+    assert!(press(&mut app, "enter").is_empty());
+    let effects = press(&mut app, "enter");
+    assert!(effects.iter().any(|effect| matches!(
+        effect,
+        Effect::ImportImage { path, .. } if path == &expected
+    )));
+}
+
 #[tokio::test]
 async fn staging_an_image_preserves_newer_caption_and_attachment_draft() {
     let dir = tempfile::tempdir().unwrap();
