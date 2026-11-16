@@ -43,8 +43,10 @@ pub fn available(message: &MessageRecord, now_ms: i64) -> Vec<crate::config::bin
     {
         actions.push(A::Resend);
     }
-    if matches!(message.body, MessageBody::LocalImage { .. })
-        && message.key.from_me
+    if matches!(
+        message.body,
+        MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. }
+    ) && message.key.from_me
         && matches!(
             message.send_state,
             Some(SendState::Failed | SendState::Unconfirmed)
@@ -75,6 +77,7 @@ pub fn text(message: &MessageRecord, now_ms: i64) -> Option<&str> {
         MessageBody::Media(attachment) => attachment.caption.as_deref().filter(|s| !s.is_empty()),
         MessageBody::Text(text)
         | MessageBody::LocalImage { caption: text, .. }
+        | MessageBody::LocalDocument { caption: text, .. }
         | MessageBody::Unsupported {
             caption: Some(text),
             ..
@@ -113,7 +116,10 @@ pub fn can_react(message: &MessageRecord, now_ms: i64) -> bool {
     !message.expires_at_ms.is_some_and(|at| at <= now_ms)
         && matches!(
             message.body,
-            MessageBody::Text(_) | MessageBody::Media(_) | MessageBody::LocalImage { .. }
+            MessageBody::Text(_)
+                | MessageBody::Media(_)
+                | MessageBody::LocalImage { .. }
+                | MessageBody::LocalDocument { .. }
         )
         && (!message.key.from_me
             || matches!(
@@ -179,6 +185,17 @@ pub fn quote(message: &MessageRecord, now_ms: i64) -> Option<crate::app::model::
                 Some(kind),
             )
         }
+        MessageBody::LocalDocument { file, caption } => (
+            format!(
+                "[document]{}",
+                if caption.is_empty() {
+                    format!(" {}", file.filename)
+                } else {
+                    format!(" {caption}")
+                }
+            ),
+            Some(AttachmentKind::Document),
+        ),
         _ => return None,
     };
     Some(Quote {

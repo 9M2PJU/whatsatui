@@ -110,6 +110,7 @@ impl StickerChoice {
                     Some(a.sha256.iter().map(|b| format!("{b:02x}")).collect())
                 }
                 MessageBody::LocalImage { image, .. } => Some(image.id.clone()),
+                MessageBody::LocalDocument { .. } => None,
                 _ => None,
             },
         }

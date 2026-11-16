@@ -402,6 +402,7 @@ fn edit_body(body: &mut MessageBody, text: String) {
     match body {
         MessageBody::Media(attachment) => attachment.caption = Some(text),
         MessageBody::LocalImage { caption, .. } => *caption = text,
+        MessageBody::LocalDocument { caption, .. } => *caption = text,
         MessageBody::Unsupported { caption, .. } => *caption = Some(text),
         _ => *body = MessageBody::Text(text),
     }
@@ -422,7 +423,9 @@ pub(super) fn stage(
         }
 
         if !o.key.from_me
-            || (o.draft.text.trim().is_empty() && o.draft.attachment.is_none())
+            || (o.draft.text.trim().is_empty()
+                && o.draft.attachment.is_none()
+                && o.draft.document.is_none())
             || get(c, &o.key)?.is_some()
         {
             return Err(StoreError::InvalidData);
@@ -437,12 +440,21 @@ pub(super) fn stage(
 
         let m = MessageRecord {
             key: o.key.clone(),
-            body: match o.draft.attachment {
-                Some(image) => MessageBody::LocalImage {
+            body: match (o.draft.attachment, o.draft.document) {
+                (Some(image), None) => MessageBody::LocalImage {
                     image,
                     caption: o.draft.text,
                 },
-                None => MessageBody::Text(o.draft.text),
+                (None, Some(file)) => MessageBody::LocalDocument {
+                    file,
+                    caption: o.draft.text,
+                },
+                (None, None) => MessageBody::Text(o.draft.text),
+                // Image and document together is invalid; keep image to avoid data loss.
+                (Some(image), Some(_)) => MessageBody::LocalImage {
+                    image,
+                    caption: o.draft.text,
+                },
             },
             quote: o.draft.reply,
             created_at_ms: o.created_at_ms,
@@ -635,6 +647,9 @@ pub(super) fn preview(body: &MessageBody) -> String {
         MessageBody::Text(t) => t.clone(),
         MessageBody::LocalImage { image, caption } => {
             format!("[{}] {} {caption}", image.label(), image.filename)
+        }
+        MessageBody::LocalDocument { file, caption } => {
+            format!("[{}] {} {caption}", file.label(), file.filename)
         }
         MessageBody::Media(attachment) => format!(
             "[{}] {}",
