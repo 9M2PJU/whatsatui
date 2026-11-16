@@ -64,7 +64,7 @@ pub(super) fn dialog(
             .as_deref()
             .unwrap_or("Enter attaches · Esc cancels · ~/ and spaces supported")
     };
-    let mut status_y: u16;
+    let status_y: u16;
     if let Some(base) = &browser_base {
         frame.render_widget(
             Paragraph::new(format!("Files in {} · .. goes up", base.display())).style(style(

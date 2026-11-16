@@ -245,10 +245,10 @@ pub(crate) fn browser_cwd() -> std::path::PathBuf {
 }
 
 fn expand_base(input: &str) -> std::path::PathBuf {
-    if let Some(rest) = input.strip_prefix("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
-            return std::path::PathBuf::from(home).join(rest);
-        }
+    if let Some(rest) = input.strip_prefix("~/")
+        && let Some(home) = std::env::var_os("HOME")
+    {
+        return std::path::PathBuf::from(home).join(rest);
     }
     std::path::PathBuf::from(input)
 }
