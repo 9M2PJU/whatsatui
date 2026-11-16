@@ -118,12 +118,8 @@ pub(super) fn render(
         Some(Overlay::Attachment { .. }) => {
             super::attachments::dialog(frame, area, view, config, hits)
         }
-        Some(Overlay::SendChoice {
-            kind,
-            filename,
-            selected,
-        }) => {
-            super::attachments::choice(frame, area, view, config, hits, *kind, filename, *selected)
+        Some(choice @ Overlay::SendChoice { .. }) => {
+            super::attachments::choice(frame, area, view, config, hits, choice)
         }
         Some(Overlay::MessageActions(_)) => actions::menu(frame, area, view, config, hits),
         Some(Overlay::Reactions(_)) => reactions::popup(frame, area, view, config, hits),

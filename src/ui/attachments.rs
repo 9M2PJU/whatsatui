@@ -244,10 +244,19 @@ pub(super) fn choice(
     view: &ViewModel,
     config: &Config,
     hits: &mut InteractionMap,
-    kind: SendChoiceKind,
-    filename: &str,
-    selected: usize,
+    choice: &Overlay,
 ) {
+    let Overlay::SendChoice {
+        kind,
+        filename,
+        selected,
+    } = choice
+    else {
+        return;
+    };
+    let kind = *kind;
+    let selected = *selected;
+    let filename = filename.as_str();
     let (title, playable) = match kind {
         SendChoiceKind::Audio => (
             " Send music as… ".into(),
