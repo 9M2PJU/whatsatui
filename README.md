@@ -80,7 +80,7 @@ and files, `wl-clipboard` (Wayland) or `xclip`/`xsel` (X11) for clipboard.
 | Ctrl-C in Composer | Clear the current text |
 | J/K in Messages | Scroll rows without changing the selected message |
 | Right-click a message | Open its actions |
-| Double-click a photo or file | Download when needed, open in your viewer |
+| Double-click a photo, file, or link | Download/open media in viewer or URL in browser |
 | Ctrl-V in Composer | Paste a clipboard image, copied image file, or text |
 | Ctrl-S in Composer | Choose a recent sticker, or paste an image to create one |
 | Ctrl-O in Composer | Attach an image by path |

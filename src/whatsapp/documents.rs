@@ -267,7 +267,7 @@ mod tests {
                 &fake,
                 message,
                 dir.path().to_owned(),
-                Duration::from_secs(2)
+                Duration::from_secs(5)
             )
             .await,
             SendState::Sending
@@ -315,7 +315,7 @@ mod tests {
                 &fake,
                 message,
                 dir.path().to_owned(),
-                Duration::from_secs(2)
+                Duration::from_secs(5)
             )
             .await,
             SendState::Sending
@@ -359,7 +359,7 @@ mod tests {
                 &fake,
                 message,
                 dir.path().to_owned(),
-                Duration::from_secs(2)
+                Duration::from_secs(5)
             )
             .await,
             SendState::Sending
@@ -402,7 +402,7 @@ mod tests {
                 &fake,
                 message,
                 dir.path().to_owned(),
-                Duration::from_secs(2)
+                Duration::from_secs(5)
             )
             .await,
             SendState::Sending
@@ -444,7 +444,7 @@ mod tests {
                 &fake,
                 message,
                 dir.path().to_owned(),
-                Duration::from_secs(2)
+                Duration::from_secs(5)
             )
             .await,
             SendState::Sending

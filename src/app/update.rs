@@ -1649,7 +1649,7 @@ impl App {
                         } else {
                             self.view.new_messages = 0;
                         }
-                        self.view.selected_message = if self.view.at_bottom {
+                        self.view.selected_message = if self.view.at_bottom && cursor.is_none() {
                             self.view.messages.last().map(|m| m.key.clone())
                         } else {
                             old.clone()
