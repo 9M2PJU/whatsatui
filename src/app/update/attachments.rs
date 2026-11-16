@@ -25,15 +25,30 @@ impl App {
         };
         let editor_text = editor.text().to_owned();
         let selected = *selected;
-        // One selection spans files first, then saved drafts. Files are always
-        // listed, so picking never requires typing a path.
+        // One selection spans saved drafts first, then files, so picking
+        // never requires typing a path and draft shortcuts keep working.
         let show_drafts = editor_text.trim().is_empty() && !self.view.draft.recovered.is_empty();
-        // Empty input uses the shared selection: a file row navigates
-        // (directory) or attaches (file), a draft row restores that draft.
+        let dcount = if show_drafts {
+            self.view.draft.recovered.len()
+        } else {
+            0
+        };
+        // Empty input uses the shared selection: a draft row restores that
+        // draft, a file row navigates (directory) or attaches (file).
         if editor_text.trim().is_empty() {
+            if show_drafts && selected < dcount {
+                if let Some(chat) = &self.view.chat
+                    && self.view.draft.restore(selected, chat)
+                {
+                    self.editor = Editor::new(self.view.draft.text.clone());
+                    self.view.overlay = None;
+                    self.view.notice = Some("Saved draft restored; review before sending".into());
+                    self.remember();
+                }
+                return;
+            }
             let (_, entries) = browser_listed(&editor_text);
-            if selected < entries.len() {
-                let entry = entries[selected].clone();
+            if let Some(entry) = entries.get(selected.saturating_sub(dcount)) {
                 if entry.is_dir {
                     if let Some(Overlay::Attachment {
                         editor,
@@ -53,15 +68,6 @@ impl App {
                     return;
                 }
                 return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
-            }
-            if show_drafts
-                && let Some(chat) = &self.view.chat
-                && self.view.draft.restore(selected - entries.len(), chat)
-            {
-                self.editor = Editor::new(self.view.draft.text.clone());
-                self.view.overlay = None;
-                self.view.notice = Some("Saved draft restored; review before sending".into());
-                self.remember();
             }
             return;
         }
