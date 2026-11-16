@@ -6,6 +6,7 @@ pub enum DesktopAction {
     CopyText,
     OpenLink(String),
     CopyLink(String),
+    OpenLocal,
 }
 pub fn available(message: &MessageRecord, now_ms: i64) -> Vec<crate::config::bindings::ActionId> {
     use crate::{app::model::SendState, config::bindings::ActionId as A};
@@ -23,6 +24,12 @@ pub fn available(message: &MessageRecord, now_ms: i64) -> Vec<crate::config::bin
         if attachment.extension().is_some() {
             actions.push(A::OpenMedia);
         }
+    }
+    if matches!(
+        message.body,
+        MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. }
+    ) {
+        actions.push(A::OpenMedia);
     }
     if let Some(text) = text(message, now_ms) {
         actions.push(A::CopyText);

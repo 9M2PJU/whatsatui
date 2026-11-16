@@ -163,7 +163,25 @@ impl App {
             return;
         };
         if !matches!(message.body, MessageBody::Media(_)) {
-            self.view.notice = Some("No downloadable attachment in this message".into());
+            if matches!(action, crate::media::MediaAction::Open)
+                && matches!(
+                    message.body,
+                    MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. }
+                )
+            {
+                self.start_desktop_action(message, DesktopAction::OpenLocal, effects);
+                return;
+            }
+            self.view.notice = Some(
+                if matches!(
+                    message.body,
+                    MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. }
+                ) {
+                    "Your file is already local; use open (v) to view it".into()
+                } else {
+                    "No downloadable attachment in this message".into()
+                },
+            );
             return;
         }
         if self.desktop_request.is_some() {
@@ -202,6 +220,8 @@ impl App {
         self.view.notice = Some(
             if matches!(action, DesktopAction::OpenLink(_)) {
                 "Opening link…"
+            } else if matches!(action, DesktopAction::OpenLocal) {
+                "Opening file…"
             } else {
                 "Copying…"
             }

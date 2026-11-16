@@ -105,10 +105,36 @@ impl App {
                 if self.view.timeline_anchor.is_none() {
                     self.view.timeline_anchor = self.view.messages.last().map(|m| m.key.clone());
                 }
-                self.view.selected_message = Some(key);
+                self.view.selected_message = Some(key.clone());
                 self.reading_position();
-                if button == MouseButton::Right || double {
+                if button == MouseButton::Right {
                     self.action(ActionId::MessageActions, effects);
+                } else if double {
+                    let local = self
+                        .view
+                        .messages
+                        .iter()
+                        .find(|m| m.key == key)
+                        .is_some_and(|m| {
+                            matches!(
+                                m.body,
+                                MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. }
+                            )
+                        });
+                    if local {
+                        if let Some(message) =
+                            self.view.messages.iter().find(|m| m.key == key).cloned()
+                        {
+                            self.focus(Focus::Messages, effects);
+                            self.start_desktop_action(
+                                message,
+                                crate::message_actions::DesktopAction::OpenLocal,
+                                effects,
+                            );
+                        }
+                    } else {
+                        self.action(ActionId::MessageActions, effects);
+                    }
                 }
             }
             Target::Quote(key)
