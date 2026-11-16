@@ -1640,8 +1640,14 @@ impl App {
                         self.view.interactions = snapshot.interactions;
                         self.view.has_older = snapshot.has_older;
                         self.view.has_newer = snapshot.has_newer;
+                        if !snapshot.has_newer {
+                            self.view.at_bottom = true;
+                            self.page_cursor = None;
+                        }
                         if !self.view.at_bottom {
                             self.view.new_messages = u32::from(snapshot.has_newer);
+                        } else {
+                            self.view.new_messages = 0;
                         }
                         self.view.selected_message = if self.view.at_bottom {
                             self.view.messages.last().map(|m| m.key.clone())
@@ -1848,6 +1854,10 @@ impl App {
                                 if self.view.chat.as_ref() == Some(&message.key.chat) {
                                     self.view.draft = local.data.clone();
                                     self.editor = Editor::default();
+                                    self.view.at_bottom = true;
+                                    self.view.message_scroll = 0;
+                                    self.view.timeline_anchor = None;
+                                    self.page_cursor = None;
                                 }
                             }
                             if !self.quitting && self.view.connection == ConnectionState::Connected

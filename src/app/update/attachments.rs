@@ -37,38 +37,48 @@ impl App {
         let expanded = expand_base(&path);
         let typed_is_dir =
             !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_dir());
-        // Empty input lists the working directory. A directory path means the
-        // list is already showing that folder, so Enter acts on the
-        // highlighted row instead of reopening the same folder.
-        if path.is_empty() || typed_is_dir {
-            if path.is_empty()
-                && show_drafts
-                && selected < dcount
-                && let Some(chat) = &self.view.chat
-                && self.view.draft.restore(selected, chat)
-            {
-                self.editor = Editor::new(self.view.draft.text.clone());
-                self.view.overlay = None;
-                self.view.notice = Some("Saved draft restored; review before sending".into());
-                self.remember();
-                return;
-            }
-            // A freshly typed folder without the trailing slash first enters
-            // it; later Enters pick from the highlighted row.
-            if typed_is_dir && !editor_text.trim_end().ends_with('/') {
-                self.browse_into(path);
-                return;
-            }
-            let (_, entries) = browser_listed(&editor_text);
-            if let Some(entry) = entries.get(selected.saturating_sub(dcount)) {
-                if entry.is_dir {
-                    self.browse_into(entry.path.to_string_lossy().into_owned());
-                } else {
-                    self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
-                }
-            }
+        let typed_is_file =
+            !path.is_empty() && std::fs::metadata(&expanded).is_ok_and(|m| m.is_file());
+
+        if path.is_empty()
+            && show_drafts
+            && selected < dcount
+            && let Some(chat) = &self.view.chat
+            && self.view.draft.restore(selected, chat)
+        {
+            self.editor = Editor::new(self.view.draft.text.clone());
+            self.view.overlay = None;
+            self.view.notice = Some("Saved draft restored; review before sending".into());
+            self.remember();
             return;
         }
+
+        let (_, entries) = browser_listed(&editor_text);
+        let file_index = selected.saturating_sub(dcount);
+
+        if let Some(entry) = entries.get(file_index) {
+            if !entry.is_dir {
+                return self.attach_file_path(entry.path.to_string_lossy().into_owned(), effects);
+            }
+            if entry.name != ".." {
+                return self.browse_into(entry.path.to_string_lossy().into_owned());
+            }
+            if typed_is_dir && !editor_text.trim_end().ends_with('/') {
+                return self.browse_into(path);
+            }
+            if path.is_empty() || (typed_is_dir && editor_text.trim_end().ends_with('/')) {
+                return self.browse_into(entry.path.to_string_lossy().into_owned());
+            }
+        }
+
+        if typed_is_file {
+            return self.attach_file_path(path, effects);
+        }
+
+        if typed_is_dir {
+            return self.browse_into(path);
+        }
+
         self.attach_file_path(path, effects);
     }
 

@@ -912,7 +912,14 @@ pub(super) fn snapshot(
         )?
     };
 
-    if !after {
+    if after && messages.len() < 100 {
+        messages = rows(
+            c,
+            "SELECT data FROM messages WHERE account=? AND chat=? ORDER BY created_at_ms DESC,key DESC LIMIT 100",
+            &[&a.0, &chat.0],
+        )?;
+        messages.reverse();
+    } else if !after {
         messages.reverse();
     }
 
