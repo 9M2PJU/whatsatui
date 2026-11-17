@@ -126,6 +126,7 @@ pub(super) fn render(
         Some(Overlay::MessageLinks(_)) => actions::links(frame, area, view, config, hits),
         Some(Overlay::MessageSearch(_)) => search::messages(frame, area, view, config, hits),
         Some(Overlay::Search { .. }) => search::chats(frame, area, view, config, hits),
+        Some(Overlay::Forward { .. }) => search::forward(frame, area, view, config, hits),
         Some(Overlay::Help) => {
             let r = centered(area, 72, area.height.saturating_sub(2));
             frame.render_widget(Clear, r);

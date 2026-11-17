@@ -185,6 +185,7 @@ impl App {
             Target::Query(byte) if button == MouseButton::Left => match &mut self.view.overlay {
                 Some(
                     Overlay::Search { editor, .. }
+                    | Overlay::Forward { editor, .. }
                     | Overlay::Emoji { editor, .. }
                     | Overlay::Attachment { editor, .. },
                 ) => editor.set_cursor(byte),
@@ -199,6 +200,7 @@ impl App {
                 let current = match &self.view.overlay {
                     Some(
                         Overlay::Search { selected, .. }
+                        | Overlay::Forward { selected, .. }
                         | Overlay::Emoji { selected, .. }
                         | Overlay::Attachment { selected, .. }
                         | Overlay::SendChoice { selected, .. },

@@ -353,6 +353,7 @@ impl App {
                     self.context(),
                     Context::Composer
                         | Context::Search
+                        | Context::Forward
                         | Context::MessageSearch
                         | Context::Attachment
                         | Context::Emoji
@@ -387,6 +388,7 @@ impl App {
             Some(Overlay::MessageSearch(_)) => Context::MessageSearch,
             Some(Overlay::Settings { .. }) => Context::Settings,
             Some(Overlay::Search { .. }) => Context::Search,
+            Some(Overlay::Forward { .. }) => Context::Forward,
             Some(Overlay::Help) => Context::Help,
             Some(Overlay::Resend { .. }) => Context::Resend,
             None => match self.view.focus {
@@ -521,6 +523,8 @@ impl App {
         }) = &self.view.overlay
         {
             super::search::rank_chats(&self.chat_summaries(), editor.text(), *unread_only)
+        } else if let Some(Overlay::Forward { editor, .. }) = &self.view.overlay {
+            super::search::rank_chats(&self.chat_summaries(), editor.text(), false)
         } else {
             vec![]
         }
@@ -615,9 +619,14 @@ impl App {
                 .min(search.page.hits.len().saturating_sub(1));
             return;
         }
-        if matches!(self.view.overlay, Some(Overlay::Search { .. })) {
+        if matches!(
+            self.view.overlay,
+            Some(Overlay::Search { .. } | Overlay::Forward { .. })
+        ) {
             let len = self.search_results().len();
-            if let Some(Overlay::Search { selected, .. }) = &mut self.view.overlay {
+            if let Some(Overlay::Search { selected, .. } | Overlay::Forward { selected, .. }) =
+                &mut self.view.overlay
+            {
                 *selected = selected
                     .saturating_add_signed(delta)
                     .min(len.saturating_sub(1));
@@ -772,7 +781,7 @@ impl App {
                 Some("Finish or cancel the edit before attaching or replying".into());
             return;
         }
-        if matches!(action, A::Reply | A::Resend)
+        if matches!(action, A::Reply | A::Resend | A::Forward)
             && matches!(self.view.overlay, Some(Overlay::MessageActions(_)))
             && !self.activate_menu_target(action)
         {
@@ -988,6 +997,18 @@ impl App {
                     settings::toggle(self, selected, effects);
                     return;
                 }
+                if let Some(Overlay::Forward {
+                    message, selected, ..
+                }) = &self.view.overlay
+                {
+                    if let Some(chat) = self.search_results().get(*selected) {
+                        let dest_chat = chat.chat.clone();
+                        let message = *message.clone();
+                        self.view.overlay = None;
+                        self.forward_message(dest_chat, message, effects);
+                    }
+                    return;
+                }
                 if let Some(Overlay::Search { selected, .. }) = &self.view.overlay {
                     if let Some(chat) = self.search_results().get(*selected) {
                         let id = chat.chat.clone();
@@ -1031,6 +1052,7 @@ impl App {
                     });
                 }
             }
+            A::Forward => self.open_forward(),
             A::Confirm => {
                 if self.view.connection != ConnectionState::Connected {
                     self.view.notice = Some("Not sent: wait for the connection".into());
@@ -1091,6 +1113,26 @@ impl App {
                 }
             }
         }
+    }
+    fn forward_message(
+        &mut self,
+        dest_chat: ChatId,
+        message: MessageRecord,
+        effects: &mut Vec<Effect>,
+    ) {
+        if self.view.connection != ConnectionState::Connected {
+            self.view.notice = Some("Cannot forward: wait for the connection".into());
+            return;
+        }
+        let Some(draft) = crate::message_actions::forward_draft(&message) else {
+            self.view.notice = Some("This message cannot be forwarded".into());
+            return;
+        };
+        if self.view.chat.as_ref() != Some(&dest_chat) {
+            self.select_chat(dest_chat.clone(), effects);
+        }
+        self.prepare(dest_chat, draft, true, effects);
+        self.focus(Focus::Messages, effects);
     }
     fn prepare(
         &mut self,
@@ -1297,9 +1339,14 @@ impl App {
                 if super::search::edit_query(&mut search.editor, edit) {
                     search.invalidate(None);
                 }
-            } else if let Some(Overlay::Search {
-                editor, selected, ..
-            }) = &mut self.view.overlay
+            } else if let Some(
+                Overlay::Search {
+                    editor, selected, ..
+                }
+                | Overlay::Forward {
+                    editor, selected, ..
+                },
+            ) = &mut self.view.overlay
             {
                 if super::search::edit_query(editor, edit) {
                     *selected = 0;

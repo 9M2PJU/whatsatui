@@ -13,7 +13,7 @@ pub(super) fn menu(
     let Some(Overlay::MessageActions(menu)) = &view.overlay else {
         return;
     };
-    let rect = overlays::centered(area, 64, 11);
+    let rect = overlays::centered(area, 64, 13);
     frame.render_widget(Clear, rect);
     let border = block(" Message actions ".into(), true, view, config);
     let inner = border.inner(rect);
@@ -58,6 +58,7 @@ pub(super) fn menu(
                 A::OpenMedia => "Open downloaded file",
                 A::Reply => "Reply to message",
                 A::Resend => "Resend message",
+                A::Forward => "Forward message",
                 _ => "",
             };
             ListItem::new(format!(

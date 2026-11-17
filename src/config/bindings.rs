@@ -24,6 +24,7 @@ pub enum Context {
     Messages,
     Composer,
     Search,
+    Forward,
     MessageSearch,
     MessageActions,
     MessageLinks,
@@ -58,6 +59,7 @@ pub enum ActionId {
     FocusNext,
     FocusPrevious,
     Search,
+    Forward,
     MessageSearch,
     Unread,
     ToggleUnread,
@@ -121,6 +123,7 @@ impl ActionId {
             Self::Back => "back",
             Self::Reply => "reply",
             Self::Resend => "resend",
+            Self::Forward => "forward",
             Self::Settings => "settings",
             Self::PageUp => "older",
             Self::PageDown => "newer",
@@ -224,6 +227,7 @@ impl Default for Bindings {
             (A::Back, "esc"),
             (A::Reply, "r"),
             (A::Resend, "R"),
+            (A::Forward, "f"),
             (A::PageUp, "pageup"),
             (A::PageDown, "pagedown"),
             (A::ScrollUp, "K"),
@@ -249,6 +253,7 @@ impl Default for Bindings {
             (A::Previous, "up"),
         ] {
             b.add(C::Search, a, k);
+            b.add(C::Forward, a, k);
             b.add(C::MessageSearch, a, k);
         }
         for (action, key) in [
@@ -289,7 +294,12 @@ impl Default for Bindings {
                 b.add(c, a, k);
             }
         }
-        for (a, k) in [(A::OpenLinks, "o"), (A::Reply, "r"), (A::Resend, "R")] {
+        for (a, k) in [
+            (A::OpenLinks, "o"),
+            (A::Reply, "r"),
+            (A::Resend, "R"),
+            (A::Forward, "f"),
+        ] {
             b.add(C::MessageActions, a, k);
         }
         b
@@ -326,6 +336,7 @@ impl Bindings {
                         context,
                         Context::Composer
                             | Context::Search
+                            | Context::Forward
                             | Context::MessageSearch
                             | Context::Attachment
                             | Context::Emoji
@@ -516,6 +527,7 @@ fn allowed(c: Context, a: ActionId) -> bool {
             a,
             A::Back | A::Open | A::Next | A::Previous | A::ToggleUnread
         ),
+        C::Forward => matches!(a, A::Back | A::Open | A::Next | A::Previous),
         C::MessageSearch => matches!(a, A::Back | A::Open | A::Next | A::Previous),
         C::MessageActions => matches!(
             a,
@@ -534,6 +546,7 @@ fn allowed(c: Context, a: ActionId) -> bool {
                 | A::OpenMedia
                 | A::Reply
                 | A::Resend
+                | A::Forward
         ),
         C::MessageLinks => matches!(a, A::Back | A::Open | A::Next | A::Previous | A::CopyText),
         C::Help => matches!(a, A::Back | A::Next | A::Previous | A::PageUp | A::PageDown),

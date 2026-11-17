@@ -49,6 +49,23 @@ impl App {
             self.view.notice = Some("Select an available message first".into());
         }
     }
+    pub(super) fn open_forward(&mut self) {
+        if let Some(message) = self
+            .selected()
+            .filter(|m| {
+                crate::message_actions::can_forward(m, chrono::Utc::now().timestamp_millis())
+            })
+            .cloned()
+        {
+            self.view.overlay = Some(Overlay::Forward {
+                message: Box::new(message),
+                editor: Editor::default(),
+                selected: 0,
+            });
+        } else {
+            self.view.notice = Some("This message cannot be forwarded".into());
+        }
+    }
     pub(super) fn open_message_links(&mut self) {
         let Some(message) = self.action_message() else {
             return;

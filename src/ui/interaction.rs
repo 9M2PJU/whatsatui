@@ -37,6 +37,7 @@ pub fn context(view: &ViewModel) -> Context {
         Some(Overlay::MessageSearch(_)) => Context::MessageSearch,
         Some(Overlay::Settings { .. }) => Context::Settings,
         Some(Overlay::Search { .. }) => Context::Search,
+        Some(Overlay::Forward { .. }) => Context::Forward,
         Some(Overlay::Help) => Context::Help,
         Some(Overlay::Resend { .. }) => Context::Resend,
         None => match view.focus {

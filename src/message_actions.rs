@@ -40,6 +40,9 @@ pub fn available(message: &MessageRecord, now_ms: i64) -> Vec<crate::config::bin
     if quote(message, now_ms).is_some() {
         actions.push(A::Reply);
     }
+    if can_forward(message, now_ms) {
+        actions.push(A::Forward);
+    }
     if matches!(message.body, MessageBody::Text(_))
         && !actions.is_empty()
         && message.key.from_me
@@ -226,4 +229,60 @@ pub fn quote(message: &MessageRecord, now_ms: i64) -> Option<crate::app::model::
         availability: QuoteAvailability::Available,
         media_kind,
     })
+}
+pub fn can_forward(message: &MessageRecord, now_ms: i64) -> bool {
+    if message.expires_at_ms.is_some_and(|at| at <= now_ms) {
+        return false;
+    }
+    match &message.body {
+        MessageBody::Text(text) => !text.is_empty(),
+        MessageBody::LocalImage { .. } | MessageBody::LocalDocument { .. } => true,
+        MessageBody::Media(attachment) => {
+            attachment.caption.as_deref().is_some_and(|c| !c.is_empty())
+        }
+        MessageBody::Unsupported {
+            caption: Some(caption),
+            ..
+        } => !caption.is_empty(),
+        _ => false,
+    }
+}
+pub fn forward_draft(message: &MessageRecord) -> Option<crate::app::model::Draft> {
+    use crate::app::model::Draft;
+    match &message.body {
+        MessageBody::Text(text) if !text.is_empty() => Some(Draft {
+            text: text.clone(),
+            ..Default::default()
+        }),
+        MessageBody::LocalImage { image, caption } => Some(Draft {
+            text: caption.clone(),
+            attachment: Some(image.clone()),
+            ..Default::default()
+        }),
+        MessageBody::LocalDocument { file, caption } => {
+            let document_as_media = file.is_audio() && caption.trim().is_empty();
+            Some(Draft {
+                text: caption.clone(),
+                document: Some(file.clone()),
+                document_as_media,
+                ..Default::default()
+            })
+        }
+        MessageBody::Media(attachment) => attachment
+            .caption
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(|caption| Draft {
+                text: caption.to_owned(),
+                ..Default::default()
+            }),
+        MessageBody::Unsupported {
+            caption: Some(caption),
+            ..
+        } if !caption.is_empty() => Some(Draft {
+            text: caption.clone(),
+            ..Default::default()
+        }),
+        _ => None,
+    }
 }

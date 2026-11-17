@@ -369,3 +369,51 @@ fn double_clicking_message_with_multiple_urls_opens_link_picker() {
     click_point(&mut app, point, MouseButton::Left);
     assert!(matches!(app.view().overlay, Some(Overlay::MessageLinks(_))));
 }
+
+#[test]
+fn forward_flow_from_menu_and_shortcut() {
+    let mut app = text_app("Message to forward");
+    // Enter to open message actions
+    press(&mut app, "enter");
+    let txt = screen(&app, 120, 40);
+    assert!(
+        txt.contains("Forward message"),
+        "menu contains Forward message"
+    );
+    // Press 'f' to trigger forward action
+    press(&mut app, "f");
+    assert!(matches!(app.view().overlay, Some(Overlay::Forward { .. })));
+    let forward_screen = screen(&app, 120, 40);
+    assert!(forward_screen.contains("Forward message"));
+    assert!(forward_screen.contains("Message to forward"));
+    // Esc closes forward overlay
+    press(&mut app, "esc");
+    assert!(app.view().overlay.is_none());
+
+    // Direct shortcut 'f' from Messages focus opens forward
+    press(&mut app, "f");
+    assert!(matches!(app.view().overlay, Some(Overlay::Forward { .. })));
+
+    // Press Enter to forward to currently highlighted chat
+    let effects = press(&mut app, "enter");
+    assert!(app.view().overlay.is_none());
+    let prepared = effects
+        .iter()
+        .any(|e| matches!(e, Effect::Prepare { draft, .. } if draft.text == "Message to forward"));
+    assert!(prepared, "Prepare effect emitted with forwarded text");
+}
+
+#[test]
+fn right_clicking_message_shows_forward_option() {
+    let mut app = text_app("Right click test");
+    let map = rendered_map(&app, 120);
+    let point = coordinate(&map, |t| matches!(t, Target::Message(_)));
+    app.update(Input::Rendered(map), Instant::now());
+    click_point(&mut app, point, MouseButton::Right);
+    assert!(matches!(
+        app.view().overlay,
+        Some(Overlay::MessageActions(_))
+    ));
+    let text = screen(&app, 120, 40);
+    assert!(text.contains("Forward message"));
+}

@@ -38,6 +38,11 @@ pub enum Overlay {
         selected: usize,
         unread_only: bool,
     },
+    Forward {
+        message: Box<MessageRecord>,
+        editor: Editor,
+        selected: usize,
+    },
     Help,
     Resend {
         message: Box<MessageRecord>,
