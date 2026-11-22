@@ -2,7 +2,7 @@
 
 Pinned dependency: `whatsapp-rust = 0.7.0`. Stable Rust 1.98.0, default backend features disabled (no nightly SIMD).
 
-Automated adapter checks cover text/quote encoding, caller-assigned IDs, conservative send error classification, durability failure propagation, replay deduplication, bounded bridge backpressure, cancellation, group sender identity, captions, and supplied expiry metadata. These checks use synthetic data and local SQLite only.
+Automated adapter checks cover text/quote encoding, caller-assigned IDs, conservative send error classification, durability failure propagation, replay deduplication, non-blocking event dispatch, cancellation, group sender identity, captions, and supplied expiry metadata. These checks use synthetic data and local SQLite only.
 
 On 2026-09-29, local automated checks also exercised initial unread baselines/read watermarks, receipts and edits before content, authoritative PN/LID merging, stored and visible quote expiry, stale draft writes, concurrent edits during sends, and bounded backward/forward paging during arrivals. Linux PTY tests passed for demo Ctrl-Q cleanup, controlled panic cleanup, invalid config before raw mode, and shutdown with saturated queues. The manual demo exercise covered multiline Unicode paste and resizing 80×24 → 39×11 → 120×32. These establish local behavior, not compatibility with a live account.
 
@@ -293,3 +293,11 @@ The checked-in pre-push hook and CI share `scripts/check.sh`: formatting, Clippy
 The shared runner passes **392 tests**, with four existing native checks left opt-in. This includes all sixteen PTY tests and four hook regressions using isolated Git repositories and a controlled Cargo subprocess: failure propagation from all four stages, matching annotated tags, dirty/different revisions, and empty/deletion-only updates. Formatting, whitespace and Clippy checks pass. Test accounts, clipboard helpers and media viewers are synthetic; no real WhatsApp session or outbound message is involved. The app remains `0.2.0` because this change affects development tooling/tests only; the new terminal parser is a dev dependency.
 
 One independent review identified four remaining raw UI-text assertions; those were converted to current-screen checks, and the shared validation was rerun successfully. Final tested revision: `5f11962607da24a7de940efb8560094d6bf09848`. The optimized build passes and reports `whatsapp-tui 0.2.0`; its SHA-256 remains `b47d629c742a7a9e92c1822bceb19a18c0196767e7c0852f0e04fdad6bae7654`, identical to the preceding application build. Evidence is preserved locally in `.superpowers/sdd/2026-10-02-pre-push-checks/`.
+
+## Event bridge stall fix - 2026-11-23
+
+A live 0.3.9 session stalled on **Connecting** after a large offline catch-up. The process held 521 threads, 512 of them parked at tokio's default blocking-pool cap, and its only WhatsApp socket was a dead `CLOSE-WAIT` connection. Root cause: `src/whatsapp/bridge.rs` forwarded protocol events through a bounded `sync_channel` and called `tokio::task::block_in_place` from the synchronous event handler, while the consumer ran as a `spawn_blocking` task. Once the queue filled, each event handed a runtime core to a blocking thread until no blocking thread remained and the ingest task stopped draining the queue.
+
+The bridge now uses a tokio unbounded channel and never waits on the protocol dispatch path. The ingest task owns the receiver, applies backpressure by awaiting storage and the bounded application-event queue, and is closed explicitly during shutdown. The blocking forwarder is gone. New tests cover a stalled consumer, a burst sent from a runtime worker, ordering across 100,000 events, and sending after the consumer is dropped.
+
+This environment has no Rust toolchain, so formatting, Clippy with warnings denied, the full test suite, and the optimized build remain for the pre-push hook or CI. No live-account check was performed for this change; the stall was observed on the user's running session and the session database was only read.

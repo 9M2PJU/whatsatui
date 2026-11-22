@@ -1,12 +1,5 @@
 use super::{bridge, durability::DurableInbox, normalize, *};
-use std::{
-    collections::BTreeMap,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use whatsapp_rust::wacore_binary::JidExt;
 use whatsapp_rust::{
     Client,
@@ -62,7 +55,7 @@ pub(super) async fn start(
     let device = SqliteStore::new(session_path.to_str().ok_or(BackendError::InvalidIdentity)?)
         .await
         .map_err(|e| BackendError::Service(e.into()))?;
-    let (bridge, raw) = bridge::bounded(128);
+    let (bridge, mut raw) = bridge::channel();
     let (notices, mut problems) = tokio::sync::watch::channel(None);
     let (events, rx) = mpsc::channel(256);
     let bot = Bot::builder()
@@ -80,26 +73,7 @@ pub(super) async fn start(
     );
     let (commands, mut requests) = mpsc::channel(32);
     let (stop, mut stopping) = oneshot::channel();
-    let finished = Arc::new(AtomicBool::new(false));
-    let done = finished.clone();
-    let (raw_tx, mut raw_rx) = mpsc::channel(32);
-    let forwarding = tokio::task::spawn_blocking(move || {
-        loop {
-            match raw.recv_timeout(Duration::from_millis(20)) {
-                Ok(event) => {
-                    if raw_tx.blocking_send(event).is_err() {
-                        break;
-                    }
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    if done.load(Ordering::Acquire) {
-                        break;
-                    }
-                }
-                Err(_) => break,
-            }
-        }
-    });
+    let (close_ingest, mut ingest_closing) = oneshot::channel();
     let event_client = client.clone();
     let event_store = store.clone();
     let event_tx = events.clone();
@@ -109,13 +83,20 @@ pub(super) async fn start(
         if let Some(a) = account(&event_client) {
             emit(&event_tx, BackendEvent::AccountKnown(a)).await?;
         }
-        while let Some(event) = raw_rx.recv().await {
+        loop {
+            let event = tokio::select! {
+                event = raw.recv() => event,
+                _ = &mut ingest_closing => None,
+            };
+            let Some(event) = event else {
+                break;
+            };
             if !mute_sync_started && matches!(&*event, Event::Connected(_)) {
                 mute_sync_started = true;
                 let client = event_client.clone();
                 // Existing linked sessions have already consumed these settings
                 // in older versions. Request their snapshot once per launch.
-                // Run separately: sync emits events through this bounded queue.
+                // Run separately: sync emits events through the app event queue.
                 mute_sync.spawn(async move {
                     client.process_sync_task(whatsapp_rust::sync_task::MajorSyncTask::AppStateSync {
                         name: whatsapp_rust::wacore::appstate::patch_decode::WAPatchName::RegularHigh,
@@ -171,12 +152,11 @@ pub(super) async fn start(
         }
         // The event consumer remains active while the protocol flushes/disconnects.
         bot.shutdown().await;
-        finished.store(true, Ordering::Release);
         drop(client);
+        let _ = close_ingest.send(());
         if !ingest.is_finished() {
             result = ingest.await.unwrap_or(Err(BackendError::Stopped));
         }
-        let _ = forwarding.await;
         let _ = events.send(BackendEvent::Stopped).await;
         result
     });

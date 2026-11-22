@@ -206,6 +206,8 @@ For disk or permissions errors, free space or restore access to your private dir
 
 For a revoked linked session, first quit and check Linked devices on your phone. To re-pair while keeping local chat history, **with every instance stopped**, move `session.sqlite3` and any `session.sqlite3-wal` / `session.sqlite3-shm` sidecars into a private backup directory. Leave `chat.sqlite3` and its sidecars in place, then restart and scan a new QR. Never move an active database. Alternatively, use a fresh `--data-dir`; the old cache remains in the original directory.
 
+If the header stays on **Connecting** while the session is still listed in Linked devices, versions before 0.3.11 could stall the protocol event queue during a large offline catch-up. Quit and restart; the saved session is reused and no new QR is needed.
+
 Ctrl-Q requests a graceful shutdown; external SIGINT and SIGTERM signals do too. Ctrl-C inside Composer clears its text. Terminal state is restored on normal exit, input errors, and a Rust panic. SIGKILL and machine failure cannot run cleanup; use your shell's `reset` command if the terminal was left in a bad state.
 
 ## Live acceptance

@@ -4,7 +4,7 @@ use whatsapp_rust::{types::events::MuteUpdate, waproto::whatsapp::sync_action_va
 
 #[test]
 fn subscribes_to_chat_mute_updates() {
-    let (bridge, _receiver) = bridge::bounded(1);
+    let (bridge, _receiver) = bridge::channel();
     assert!(RawHandler(bridge).interest().wants(EventKind::MuteUpdate));
 }
 
